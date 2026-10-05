@@ -1,0 +1,482 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Chapter 1 · Introduction — ISLP Plainly</title>
+<meta name="description" content="ISLP Chapter 1 in plain language: what statistical learning is, the three datasets that frame the book, a short history, who the book is for, and the notation it uses — with interactive charts.">
+<link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css">
+<link rel="stylesheet" href="assets/css/style.css">
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/contrib/auto-render.min.js"></script>
+<script defer src="assets/js/plots.js"></script>
+<script defer src="assets/data/ch01-data.js"></script>
+<script defer src="assets/js/nav.js"></script>
+<script defer src="assets/js/demos/ds-tour.js"></script>
+<script defer src="assets/js/demos/notation.js"></script>
+<script defer src="assets/js/common.js"></script>
+</head>
+<body>
+
+<a class="skip-link" href="#main">Skip to content</a>
+
+<header class="topbar">
+  <button class="icon-btn" data-sidebar-toggle aria-label="Open navigation menu" aria-controls="sidebar">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 7h16M4 12h16M4 17h16"/></svg>
+  </button>
+  <span class="topbar-title">1 · Introduction</span>
+</header>
+
+<div class="app">
+
+  <!-- ======================= sidebar ======================= -->
+  <aside class="sidebar" id="sidebar">
+    <div class="brand">
+      <span class="logo">∑</span>
+      <a href="index.html">ISLP Plainly</a>
+    </div>
+
+    <nav class="side-nav" aria-label="Site navigation"></nav>
+
+    <div class="side-foot">
+      <button class="theme-btn" data-theme-toggle type="button">
+        <svg class="sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2m0 16v2M4.9 4.9l1.4 1.4m11.4 11.4 1.4 1.4M2 12h2m16 0h2M4.9 19.1l1.4-1.4m11.4-11.4 1.4-1.4"/></svg>
+        <svg class="moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg>
+        <span class="theme-label">Dark mode</span>
+      </button>
+    </div>
+  </aside>
+
+  <!-- ======================= main ======================= -->
+  <main id="main">
+
+    <div class="page-head">
+      <p class="eyebrow">Chapter 1 · book pages 1–14</p>
+      <h1>Introduction</h1>
+      <p class="lede">The opening chapter makes no models and fits nothing. It
+        introduces the field, walks through the three datasets the rest of the book
+        keeps coming back to, gives a five-minute history, and — the part that
+        earns its page — decodes the notation every later chapter assumes you
+        already know.</p>
+    </div>
+
+    <section id="reading">
+      <h2>Reading</h2>
+      <ul class="reading">
+        <li><span class="r-label">Read</span>
+          <span class="r-body">Chapter 1 in full — it is short, and none of it is
+            hard. Skip nothing except the matrix display in §5 if it makes your
+            eyes glaze; the sentence underneath it is enough.</span></li>
+        <li><span class="r-label">Datasets</span>
+          <span class="r-body">Wage · Smarket · NCI60 (all ship with the
+            <code>ISLP</code> package)</span></li>
+        <li><span class="r-label">Lab</span>
+          <span class="r-body">None — the first lab is in Chapter 2</span></li>
+      </ul>
+
+      <div class="keybox">
+        <p class="keybox-title">Key ideas</p>
+        <p>Statistical learning means estimating a relationship from data instead of
+          knowing it. Three questions run through the whole book: is there an answer
+          to predict (supervised), is that answer a number or a category
+          (regression or classification), and if there is no answer at all, what
+          structure is left to find (unsupervised). Chapter 1 also fixes five
+          symbols — <em>n, p, x<sub>ij</sub>, x<sub>i</sub>, y<sub>i</sub></em> —
+          that mean exactly the same thing in every chapter that follows.</p>
+      </div>
+
+      <h3>What you will know afterwards</h3>
+      <ul class="chips">
+        <li class="chip">supervised vs unsupervised</li>
+        <li class="chip">regression vs classification</li>
+        <li class="chip">why a dataset is called “n by p”</li>
+        <li class="chip">reading a subscript: x<sub>ij</sub></li>
+        <li class="chip">row vectors and column vectors</li>
+        <li class="chip">what matrix multiplication means in words</li>
+        <li class="chip">where the book is going</li>
+      </ul>
+    </section>
+
+    <section id="overview">
+      <h2>1. What statistical learning is</h2>
+
+      <p>Statistical learning is a set of tools for working out a relationship from
+        data, when nobody has told you what that relationship is. You observe
+        inputs and you observe outcomes, and the job is to find the rule hiding
+        between them — well enough that it still works on data you have not seen.</p>
+
+      <p>Everything in the book is sorted by two questions, and it is worth
+        learning the four boxes now, because every method later gets filed into one
+        of them:</p>
+
+      <table>
+        <thead>
+          <tr><th></th><th>The answer is a number</th><th>The answer is a category</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><strong>We have answers</strong><br>
+              <span class="demo-note">supervised learning</span></td>
+            <td><strong>Regression</strong> — how much? Predict a person's wage
+              from their age.</td>
+            <td><strong>Classification</strong> — which one? Predict whether the
+              market goes up or down.</td>
+          </tr>
+          <tr>
+            <td><strong>No answers</strong><br>
+              <span class="demo-note">unsupervised learning</span></td>
+            <td colspan="2"><strong>Clustering</strong> — who is like whom? Find
+              groups among 64 cell lines when nobody has labelled them. There is no
+              “right answer” to be scored against, only structure to discover.</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <p>There is also a fifth box the book mentions in passing: <em>semi-supervised
+        learning</em>, where a handful of rows are labelled and the rest are not —
+        common in medicine and biology, where labels are expensive. We will not
+        need it again until it comes up naturally.</p>
+
+      <div class="callout ok">
+        <p class="callout-title">The one sentence to remember</p>
+        <p>We never get to see the true relationship — only its output, with noise
+          mixed in. Every method in this book is a different guess about what is
+          behind the numbers, and the rest of the book is about choosing between
+          those guesses.</p>
+      </div>
+    </section>
+
+    <section id="datasets">
+      <h2>2. Three datasets, three shapes of problem</h2>
+
+      <p>The chapter introduces three real datasets, and it does so carefully:
+        each one exists to make one of those four boxes concrete. They reappear
+        throughout the book, so it pays to know what each one looks like now.</p>
+
+      <ul>
+        <li><strong>Wage</strong> — 3,000 men from the mid-Atlantic US, 11 variables
+          each (year, age, race, education, job class, health…). We have an answer:
+          their wage. Predicting a number, so this is <strong>regression</strong>.</li>
+        <li><strong>Smarket</strong> — 1,250 days of the S&amp;P 500 with the
+          previous five days' percentage changes. The answer is Up or Down.
+          Predicting a category, so this is <strong>classification</strong>.</li>
+        <li><strong>NCI60</strong> — 64 cancer cell lines, each measured on 6,830
+          genes. There is no answer to predict; we only want to know which cell
+          lines resemble each other. This is <strong>unsupervised</strong>.</li>
+      </ul>
+
+      <figure class="demo" id="demo-datasets">
+        <div class="demo-body"><canvas id="cv-datasets"></canvas></div>
+        <div class="demo-controls">
+          <span class="ctrl" id="ds-set" role="group" aria-label="Dataset">
+            <button class="btn" type="button" data-set="wage" aria-pressed="true">Wage</button>
+            <button class="btn" type="button" data-set="smarket" aria-pressed="false">Stock market</button>
+            <button class="btn" type="button" data-set="nci60" aria-pressed="false">Gene expression</button>
+          </span>
+          <span class="ctrl" id="ds-xctl">
+            <label for="ds-xsel">x axis</label>
+            <select id="ds-xsel">
+              <option value="age">age</option>
+              <option value="year">year</option>
+              <option value="edu">education</option>
+            </select>
+          </span>
+          <span class="ctrl" id="ds-mode" role="group" aria-label="Colour by">
+            <button class="btn" type="button" data-mode="cluster" aria-pressed="true">4 found groups</button>
+            <button class="btn" type="button" data-mode="type" aria-pressed="false">14 real types</button>
+          </span>
+          <span class="ro" id="ds-meta">…</span>
+          <div class="legend" id="ds-legend"></div>
+        </div>
+        <figcaption><strong>Play with it:</strong> the same three problems, one
+          chart. On <strong>Wage</strong>, hover a dot to read that person off the
+          plot, and switch the x axis — the red line is the smoothed average, and
+          it bends, which is why a straight line will not be enough. On
+          <strong>Stock market</strong>, the two boxes sit on top of each other:
+          yesterday's return barely separates up days from down days, and that
+          near-total overlap is the honest starting point for Chapter 4. On
+          <strong>Gene expression</strong>, each dot is one cell line squeezed from
+          6,830 numbers down to two. Colour by the four groups the plot itself
+          suggests, then by the 14 cancer types added afterwards — they do not
+          match perfectly, which is exactly the book's point: the groups are real,
+          and they are not the whole story.
+          <span id="ds-note" class="demo-note"></span></figcaption>
+      </figure>
+
+      <p>Two details in that chart are worth pausing on, because the chapter makes
+        them deliberately:</p>
+
+      <ul>
+        <li>The <strong>wage curve bends</strong>. It rises with age, then flattens
+          and falls after about 60. A straight line would miss the bend entirely —
+          the failure is built into the shape of the guess, not into the data.</li>
+        <li>The <strong>stock boxes overlap</strong>. If two groups look the same,
+          no method can separate them well, and pretending otherwise is how people
+          lose money. Chapter 4 will squeeze about 60% accuracy out of this data —
+          barely better than a coin, and the book says so out loud.</li>
+      </ul>
+
+      <div class="callout">
+        <p class="callout-title">n and p, already</p>
+        <p>You have met the book's basic units without being told: Wage is
+          <strong>n = 3,000</strong> rows and <strong>p = 11</strong> columns;
+          NCI60 is <strong>n = 64</strong> and <strong>p = 6,830</strong>. Rows are
+          people (or days, or cell lines); columns are the measurements taken on
+          them. Section 5 gives these their symbols for good.</p>
+      </div>
+    </section>
+
+    <section id="history">
+      <h2>3. A brief history</h2>
+
+      <p>The phrase <em>statistical learning</em> is recent, but almost everything
+        in it is old. The field is best understood as the moment when methods that
+        already existed in statistics became cheap enough to run on modern
+        computers — and therefore available to everyone.</p>
+
+      <table>
+        <thead>
+          <tr><th>When</th><th>What appeared</th><th>Where it lives in this book</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>early 1800s</td><td>Least squares — the original linear
+            regression, invented for tracking planets and stars</td>
+            <td>Chapter 3</td></tr>
+          <tr><td>1936</td><td>Linear discriminant analysis, for predicting
+            categories instead of numbers</td><td>Chapter 4</td></tr>
+          <tr><td>1940s</td><td>Logistic regression — the other half of
+            classification</td><td>Chapter 4</td></tr>
+          <tr><td>early 1970s</td><td>Generalized linear models: one framework
+            containing both of the above</td><td>Chapter 4 §6</td></tr>
+          <tr><td>1980s</td><td>Trees, then generalized additive models, then
+            neural networks — non-linear methods finally became computable</td>
+            <td>Chapters 7, 8, 10</td></tr>
+          <tr><td>1990s</td><td>Support vector machines</td><td>Chapter 9</td></tr>
+          <tr><td>now</td><td>Free, friendly software (Python) turns the whole
+            toolkit into something anyone can run</td><td>every lab</td></tr>
+        </tbody>
+      </table>
+
+      <p>Notice the shape of that list: for a century there were only <em>linear</em>
+        methods, because non-linear ones could not be computed. When computing
+        power arrived, the field did not replace the old methods — it grew around
+        them. Linear methods are still the default recommendation for most
+        real work, and Chapters 3 and 4 are the ones you will use most.</p>
+    </section>
+
+    <section id="who">
+      <h2>4. Who this book is for</h2>
+
+      <p>ISLP is the accessible sibling of <em>The Elements of Statistical Learning</em>
+        (ESL), by the same first three authors. ESL is comprehensive and technical;
+        ISLP deliberately is not. The authors state their premises plainly, and
+        they are worth repeating because they explain how this site is written too:</p>
+
+      <div class="defs">
+        <div><span class="sym">1</span>
+          <span class="mean"><strong>Useful far beyond statistics.</strong> The
+            book covers the methods that turn out to matter in business, biology,
+            engineering and the social sciences — not every method that exists.</span></div>
+        <div><span class="sym">2</span>
+          <span class="mean"><strong>No black boxes.</strong> You should know what
+            each method is doing and what it assumes, or you cannot choose between
+            them. Understanding the cogs is required; building the machine is not.</span></div>
+        <div><span class="sym">3</span>
+          <span class="mean"><strong>The maths is deliberately thin.</strong> Matrix
+            algebra is almost entirely avoided. You are not expected to derive
+            anything, and one introductory statistics course is enough background.</span></div>
+        <div><span class="sym">4</span>
+          <span class="mean"><strong>Meant to be run, not just read.</strong> Every
+            chapter ends with a Python lab on real data. Roughly a third of the
+            course time in the authors' own classes goes on the labs.</span></div>
+      </div>
+
+      <p>The audience the authors name is broad: scientists, engineers, analysts,
+        data scientists, quants, plus people from business and the social sciences
+        who are comfortable with numbers but not necessarily with mathematics. In
+        other words — this book was written for you, notation and all.</p>
+
+      <div class="callout warn">
+        <p class="callout-title">About the flagged passages</p>
+        <p>The book marks a handful of harder passages with a small icon. They are
+          optional. Skipping them loses nothing that later chapters depend on, and
+          this site marks them too whenever they come up.</p>
+      </div>
+    </section>
+
+    <section id="notation">
+      <h2>5. Notation: the five symbols you need</h2>
+
+      <p>Everything the book does later is written in a handful of symbols. They
+        look like algebra, but each one is just a label for an everyday idea —
+        a row, a column, a single cell. Here they are, one at a time, against a
+        real table of five people from the Wage data.</p>
+
+      <figure class="demo" id="demo-notation">
+        <div class="demo-body grid2">
+          <div class="npanel" id="ntable"></div>
+          <div class="npanel nsay">
+            <p class="nsay-sym" id="nsay-sym">$$x_{ij}$$</p>
+            <p class="nsay-plain" id="nsay-plain">Hover a cell, or pick a symbol below.</p>
+            <p class="demo-note">Five people out of the 3,000, four variables out
+              of the 11 — the real table is bigger, but the notation is identical.</p>
+          </div>
+        </div>
+        <div class="demo-controls" id="ncontrols" role="group" aria-label="Symbol">
+          <button class="btn" type="button" data-mode="xij" aria-pressed="true">x<sub>ij</sub> — one cell</button>
+          <button class="btn" type="button" data-mode="xi" aria-pressed="false">x<sub>i</sub> — one row</button>
+          <button class="btn" type="button" data-mode="xj" aria-pressed="false">x<sub>j</sub> — one column</button>
+          <button class="btn" type="button" data-mode="yi" aria-pressed="false">y<sub>i</sub> — the answer</button>
+          <button class="btn" type="button" data-mode="n" aria-pressed="false">n — rows</button>
+          <button class="btn" type="button" data-mode="p" aria-pressed="false">p — columns</button>
+          <span class="ro" id="nmeta">hover the table</span>
+        </div>
+        <figcaption><strong>Play with it:</strong> each button is one symbol the
+          book uses everywhere. Press it and the table highlights exactly the cells
+          that symbol refers to, with the English sentence underneath. Then move
+          your mouse over the table: for <strong>x<sub>ij</sub></strong> the
+          highlight follows your pointer, so you can watch <em>i</em> walk down the
+          rows and <em>j</em> walk across the columns. The rule is short: the first
+          subscript is <em>which row</em> (which person), the second is
+          <em>which column</em> (which variable).</figcaption>
+      </figure>
+
+      <p>Three things the symbols stand for:</p>
+
+      <div class="defs">
+        <div><span class="sym">$$n$$</span>
+          <span class="mean">How many rows — people, days, cell lines. <strong>The
+            size of the sample.</strong> Wage has n = 3,000.</span></div>
+        <div><span class="sym">$$p$$</span>
+          <span class="mean">How many columns — variables we measured. <strong>The
+            number of things we know about each row.</strong> Wage has p = 11.</span></div>
+        <div><span class="sym">$$x_{ij}$$</span>
+          <span class="mean">One cell: the value of variable j for observation i.
+            <strong>“Age of person 3”</strong> — row first, column second.</span></div>
+        <div><span class="sym">$$x_i$$</span>
+          <span class="mean">A whole row — everything measured on one person.
+            <strong>“Person 3's file.”</strong></span></div>
+        <div><span class="sym">$$y_i$$</span>
+          <span class="mean">The answer for row i, and only that: one number per
+            row. <strong>“Person 3's wage.”</strong> This is the thing we are
+            trying to predict.</span></div>
+      </div>
+
+      <p>The whole table of n rows and p columns is written as a big grid called
+        <strong>X</strong>:</p>
+
+      $$X = \begin{pmatrix} x_{11} & x_{12} & \cdots & x_{1p} \\ x_{21} & x_{22} & \cdots & x_{2p} \\ \vdots & & \ddots & \vdots \\ x_{n1} & x_{n2} & \cdots & x_{np} \end{pmatrix}$$
+
+      <p>Read it as a sentence: <em>"X is the spreadsheet of everything we know,
+        n rows by p columns."</em> That is all X is. The book's own advice is the
+        same: visualise it as a spreadsheet. If you can point at a cell in a
+        spreadsheet, you can read that display.</p>
+
+      <p>Two small add-ons, and then we are done with notation. A <strong>vector</strong>
+        is just a list of numbers stacked in a column — a single row or a single
+        column of that spreadsheet. And the superscript T means
+        <em>turn it on its side</em>: a column becomes a row. The book uses that in
+        a couple of displays and nowhere else.</p>
+
+      <div class="callout">
+        <p class="callout-title">The only formula on this page that does anything</p>
+        <p>Every now and then the book multiplies two grids together. The rule,
+          translated: <em>"to fill one box of the answer, take a row from the first
+          grid and a column from the second, multiply the pairs one by one, and add
+          them up."</em> That is a weighted sum of a row — and you can check it on
+          the book's own 2×2 example, where multiplying
+          $\begin{pmatrix}1 & 2\\3 & 4\end{pmatrix}$ by
+          $\begin{pmatrix}5 & 6\\7 & 8\end{pmatrix}$ gives
+          $\begin{pmatrix}19 & 22\\43 & 50\end{pmatrix}$, because
+          $1\times5 + 2\times7 = 19$. The book uses this in a handful of places and
+          skips it everywhere else — you can too.</p>
+      </div>
+    </section>
+
+    <section id="chapters">
+      <h2>6. How the book is organized</h2>
+
+      <p>Chapter 2 is the vocabulary chapter — what <em>f</em> is, how we estimate
+        it, and how we tell a good estimate from a bad one. Chapters 3 and 4 are
+        the classical linear methods, for numbers and for categories respectively,
+        and they carry most of the day-to-day work. Chapter 5 gives you the two
+        tools for measuring accuracy honestly. Chapter 6 is about choosing which
+        variables to trust. Everything after that is deliberately non-linear:
+        splines and additive models (7), trees and boosting (8), support vector
+        machines (9), neural networks (10), censored data (11), clustering with no
+        answers at all (12), and finally the statistics of testing many hypotheses
+        at once (13).</p>
+
+      <p>Every chapter ends with a Python lab, then exercises. The lab is where the
+        method stops being a diagram and becomes a few lines of code on the book's
+        own data.</p>
+    </section>
+
+    <section id="data">
+      <h2>7. The datasets used in the labs and exercises</h2>
+
+      <p>All of these ship with the <code>ISLP</code> Python package, so
+        <code>load_data('Wage')</code> is all it takes. Useful to have open while
+        working through later chapters.</p>
+
+      <table>
+        <thead>
+          <tr><th>Name</th><th>What is in it</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>Auto</td><td>Gas mileage, horsepower, and other information for cars</td></tr>
+          <tr><td>Bikeshare</td><td>Hourly usage of a bike sharing program in Washington, DC</td></tr>
+          <tr><td>Boston</td><td>Housing values and other information about Boston census tracts</td></tr>
+          <tr><td>BrainCancer</td><td>Survival times for patients diagnosed with brain cancer</td></tr>
+          <tr><td>Caravan</td><td>Information about individuals offered caravan insurance</td></tr>
+          <tr><td>Carseats</td><td>Information about car seat sales in 400 stores</td></tr>
+          <tr><td>College</td><td>Demographic characteristics, tuition, and more for USA colleges</td></tr>
+          <tr><td>Credit</td><td>Information about credit card debt for 400 customers</td></tr>
+          <tr><td>Default</td><td>Customer default records for a credit card company</td></tr>
+          <tr><td>Fund</td><td>Returns of 2,000 hedge fund managers over 50 months</td></tr>
+          <tr><td>Hitters</td><td>Records and salaries for baseball players</td></tr>
+          <tr><td>Khan</td><td>Gene expression measurements for four cancer types</td></tr>
+          <tr><td>NCI60</td><td>Gene expression measurements for 64 cancer cell lines</td></tr>
+          <tr><td>NYSE</td><td>Returns, volatility, and volume for the New York Stock Exchange</td></tr>
+          <tr><td>OJ</td><td>Sales information for Citrus Hill and Minute Maid orange juice</td></tr>
+          <tr><td>Portfolio</td><td>Past values of financial assets, for use in portfolio allocation</td></tr>
+          <tr><td>Publication</td><td>Time to publication for 244 clinical trials</td></tr>
+          <tr><td>Smarket</td><td>Daily percentage returns for S&amp;P 500 over a 5-year period</td></tr>
+          <tr><td>USArrests</td><td>Crime statistics per 100,000 residents in 50 states of USA</td></tr>
+          <tr><td>Wage</td><td>Income survey data for men in central Atlantic region of USA</td></tr>
+          <tr><td>Weekly</td><td>1,089 weekly stock market returns for 21 years</td></tr>
+        </tbody>
+      </table>
+
+      <div class="callout">
+        <p class="callout-title">One exception</p>
+        <p><code>USArrests</code> is not in the package — it is built into Python's
+          statistics-friendly libraries instead, and Chapter 12's lab shows how to
+          reach it.</p>
+      </div>
+    </section>
+
+    <footer style="margin-top:64px;font-size:13.5px;color:var(--muted);">
+      <p class="further">Source: ISLP, Chapter 1 (pp. 1–14). Charts drawn live in
+        your browser from the book's own Wage, Smarket and NCI60 data —
+        the PCA projection and the four groups are computed by
+        <code>tools/build_demo_data.py</code>.</p>
+      <p>ISLP Plainly — <span data-year>2026</span></p>
+    </footer>
+  </main>
+
+  <!-- ======================= page TOC ======================= -->
+  <details class="page-toc" id="page-toc" open>
+    <summary>On this page</summary>
+    <p class="toc-title">On this page</p>
+    <nav aria-label="Table of contents">
+      <ol></ol>
+    </nav>
+  </details>
+</div>
+
+<div class="scrim" id="scrim"></div>
+
+</body>
+</html>
