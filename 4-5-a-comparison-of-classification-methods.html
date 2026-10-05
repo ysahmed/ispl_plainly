@@ -1,0 +1,343 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>4.5 · A comparison of classification methods — ISLP Plainly</title>
+<meta name="description" content="ISLP section 4.5 in plain language: how LDA, QDA, naive Bayes and logistic regression nest inside each other on paper, why none dominates in practice, the six simulated scenarios of the book's head-to-head, and an interactive race you can rerun.">
+<link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css">
+<link rel="stylesheet" href="assets/css/style.css">
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/contrib/auto-render.min.js"></script>
+<script defer src="assets/js/plots.js"></script>
+<script defer src="assets/js/nav.js"></script>
+<script defer src="assets/js/demos/method-race.js"></script>
+<script defer src="assets/js/common.js"></script>
+</head>
+<body>
+
+<a class="skip-link" href="#main">Skip to content</a>
+
+<header class="topbar">
+  <button class="icon-btn" data-sidebar-toggle aria-label="Open navigation menu" aria-controls="sidebar">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 7h16M4 12h16M4 17h16"/></svg>
+  </button>
+  <span class="topbar-title">4.5 · A comparison of classification methods</span>
+</header>
+
+<div class="app">
+
+  <!-- ======================= sidebar ======================= -->
+  <aside class="sidebar" id="sidebar">
+    <div class="brand">
+      <span class="logo">∑</span>
+      <a href="index.html">ISLP Plainly</a>
+    </div>
+
+    <nav class="side-nav" aria-label="Site navigation"></nav>
+
+    <div class="side-foot">
+      <button class="theme-btn" data-theme-toggle type="button">
+        <svg class="sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2m0 16v2M4.9 4.9l1.4 1.4m11.4 11.4 1.4 1.4M2 12h2m16 0h2M4.9 19.1l1.4-1.4m11.4-11.4 1.4-1.4"/></svg>
+        <svg class="moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg>
+        <span class="theme-label">Dark mode</span>
+      </button>
+    </div>
+  </aside>
+
+  <!-- ======================= main ======================= -->
+  <main id="main">
+
+    <div class="page-head">
+      <p class="eyebrow">Chapter 4 · section 4.5 · book pages 161–166</p>
+      <h1>A comparison of classification methods</h1>
+      <p class="lede">Which classifier should you use? The honest answer,
+        which the book spends two pages proving from both directions, is
+        <em>it depends on the shape of the truth and how much data you
+        have</em>. First the paper argument (the methods nest inside each
+        other), then the experimental one (six simulated worlds, six
+        methods, no universal winner).</p>
+    </div>
+
+    <section id="reading">
+      <h2>Reading</h2>
+      <ul class="reading">
+        <li><span class="r-label">Read</span>
+          <span class="r-body">Section 4.5 in full (pp. 161–166). In 4.5.1
+            read the four bullet observations carefully — they are the
+            section's payload. In 4.5.2 read each scenario's verdict; the
+            boxplots themselves just show spread.</span></li>
+        <li><span class="r-label">Skim</span>
+          <span class="r-body">Equations 4.32–4.34 — recognise them as
+            "linear, quadratic, sum-of-pieces" and move on.</span></li>
+        <li><span class="r-label">Then</span>
+          <span class="r-body">Section 4.6 changes the subject to responses
+            that are neither categories nor plain numbers — counts like
+            bike rentals.</span></li>
+      </ul>
+
+      <div class="keybox">
+        <p class="keybox-title">Key ideas</p>
+        <p>Written as formulas, LDA, QDA and naive Bayes are nested
+          restrictions of each other: LDA is QDA with shared covariance;
+          surprisingly, LDA is <em>also</em> a special case of naive Bayes;
+          Gaussian naive Bayes is LDA with diagonal covariance; QDA and
+          naive Bayes each have forms the other cannot express (QDA has
+          interactions, naive Bayes can be arbitrarily wiggly per feature).
+          Logistic regression has the same linear log-odds form as LDA but
+          estimates it without assuming normality. In practice the six
+          book scenarios show the pattern: <strong>linear truth → LDA or
+          logistic; moderately bent truth → QDA or naive Bayes; complex
+          truth → KNN, if K is chosen well and n is large.</strong></p>
+      </div>
+
+      <h3>What you will know afterwards</h3>
+      <ul class="chips">
+        <li class="chip">the linear / quadratic / additive forms</li>
+        <li class="chip">LDA ⊂ QDA and LDA ⊂ naive Bayes</li>
+        <li class="chip">logistic vs LDA: same form, different estimate</li>
+        <li class="chip">KNN's four conditions</li>
+        <li class="chip">the six scenarios and their winners</li>
+        <li class="chip">no free lunch, classification division</li>
+        <li class="chip">bending the boundary: terms and transforms</li>
+      </ul>
+    </section>
+
+    <section id="analytical">
+      <h2>1. On paper: the methods nest inside each other (4.5.1)</h2>
+
+      <p>Set up the comparison so every method answers the same question:
+        with K classes, pick a baseline class K and assign observations to
+        the class maximising</p>
+
+      $$\log\left(\frac{\Pr(Y = k \mid X = x)}{\Pr(Y = K \mid X = x)}\right)$$
+
+      <p>— the log-odds against the baseline. Now write that quantity for
+        each method and look only at its <em>shape in x</em>:</p>
+
+      <ul>
+        <li><strong>LDA (4.32):</strong> a linear function of x — a
+          straight-line score, with coefficients built from estimates of
+          π, μ and Σ under the normal assumption.</li>
+        <li><strong>QDA (4.33):</strong> quadratic — linear terms plus
+          x<sub>j</sub>x<sub>l</sub> cross-products, because each class has
+          its own Σ.</li>
+        <li><strong>Naive Bayes (4.34):</strong> a constant plus a
+          <em>sum of separate functions of each feature</em>,
+          a<sub>k</sub> + Σ<sub>j</sub> g<sub>kj</sub>(x<sub>j</sub>) —
+          each feature gets its own curve, and the curves are added, never
+          multiplied. (The book notes this is a "generalized additive
+          model", a Chapter 7 topic.)</li>
+      </ul>
+
+      <p>Comparing the three shapes yields the section's four
+        observations:</p>
+
+      <ol>
+        <li><strong>LDA is a special case of QDA</strong> — set all the
+          class covariances equal and QDA's formula becomes LDA's. (No
+          surprise; that is literally the assumption difference.)</li>
+        <li><strong>LDA is a special case of naive Bayes too.</strong> Any
+          classifier with a straight-line boundary is naive Bayes with
+          linear g<sub>kj</sub> functions — and the book flags how
+          counterintuitive this is: LDA assumes normality with a
+          <em>shared</em> covariance, naive Bayes assumes
+          <em>independence</em>. Wildly different stories, same algebra.</li>
+        <li><strong>Gaussian naive Bayes is a special case of LDA</strong>
+          — model each feature within class as univariate normal and you
+          have LDA with a diagonal (no-correlation) covariance. So the
+          containment runs both ways between those two.</li>
+        <li><strong>QDA and naive Bayes contain neither each other.</strong>
+          Naive Bayes is restricted to be <em>purely additive</em> — feature
+          functions are summed, so it can never express interactions ("high
+          balance <em>and</em> student <em>and</em> rain"). QDA's
+          cross-product terms are exactly interactions, so QDA wins when
+          interactions matter; naive Bayes can instead bend each feature
+          arbitrarily, which QDA's single quadratic cannot.</li>
+      </ol>
+
+      <p>Conclusion: <em>"none of these methods uniformly dominates the
+        others"</em> — the winner depends on how the predictors really
+        distribute within each class, plus n and p (the bias–variance
+        trade-off wearing a new hat).</p>
+
+      <h3 id="logistic-vs-lda">Where does logistic regression fit?</h3>
+
+      <p>Recall 4.3.5's multinomial form: its log-odds against the baseline
+        are linear in the predictors — <em>identical in shape to LDA's
+        (4.32)</em>. The only difference is where the numbers come from:
+        LDA's coefficients are functions of Gaussian estimates (means,
+        covariances, priors); logistic's come from maximising the
+        likelihood without assuming any distribution for X. Therefore:</p>
+
+      <ul>
+        <li>if the normality assumption is roughly true, expect
+          <strong>LDA</strong> to win (it used a true assumption for
+          free);</li>
+        <li>if it is badly false, expect <strong>logistic</strong> to win
+          (it assumed nothing).</li>
+      </ul>
+
+      <h3 id="knn-four">KNN's four conditions</h3>
+
+      <p>KNN from Section 2.2.3 reappears as the wildcard: no assumptions at
+        all about boundary shape, just neighbourhood votes. The book's
+        bullets:</p>
+
+      <ul>
+        <li>KNN should <em>dominate</em> LDA and logistic when the true
+          boundary is highly non-linear — <strong>provided n is very large
+          and p is small</strong>.</li>
+        <li>KNN needs n much larger than p, because it is non-parametric:
+          low bias, high variance, and variance is bought off with
+          data.</li>
+        <li>Boundary non-linear but data only modest (or p not small)?
+          <strong>QDA</strong> may be preferred — it bends while using its
+          parametric assumption to keep the sample requirement low.</li>
+        <li>Unlike logistic regression, KNN tells you nothing about
+          <em>which predictors matter</em> — no coefficient table, no
+          interpretation.</li>
+      </ul>
+    </section>
+
+    <section id="empirical">
+      <h2>2. In practice: six scenarios, six methods, one race (4.5.2)</h2>
+
+      <p>Now the experiment. The book generates data from six different
+        worlds (p = 2 predictors each; three with a straight Bayes boundary,
+        three bent), draws <strong>100 separate training sets</strong> per
+        world, fits every method to each, and records test error on a large
+        test set — boxplots of the 100 results appear in Figures 4.11
+        (linear worlds) and 4.12 (non-linear). The methods: logistic
+        regression, LDA, QDA, naive Bayes (Gaussian features), and KNN twice
+        — K = 1, and K chosen automatically by cross-validation (the Chapter
+        5 technique).</p>
+
+      <p>The demo below replays that experiment one draw at a time. Pick a
+        world, pick a method to watch its boundary over the training points,
+        and read the test-error bars for all six on the right. Hit
+        <strong>New sample</strong> to redraw the training data — that is
+        what each pair of boxplot whiskers compresses:</p>
+
+      <figure class="demo" id="demo-race">
+        <div class="demo-body grid2">
+          <canvas id="cv-race"></canvas>
+          <canvas id="cv-race-err"></canvas>
+        </div>
+        <div class="demo-controls">
+          <span class="ctrl">
+            <label for="race-scen">Scenario</label>
+            <select id="race-scen">
+              <option value="1">1 · straight, independent</option>
+              <option value="2">2 · straight, correlated</option>
+              <option value="3">3 · heavy tails</option>
+              <option value="4">4 · two correlations</option>
+              <option value="5">5 · wiggly truth</option>
+              <option value="6">6 · tiny sample</option>
+            </select>
+          </span>
+          <span class="ctrl">
+            <label for="race-method">Watch method</label>
+            <select id="race-method">
+              <option value="lda">LDA</option>
+              <option value="logit">Logistic</option>
+              <option value="qda">QDA</option>
+              <option value="nb">Naive Bayes</option>
+              <option value="knn1">KNN · K=1</option>
+              <option value="knncv">KNN · K by CV</option>
+            </select>
+          </span>
+          <button class="btn primary" id="race-new" type="button">New sample</button>
+          <span class="ro" id="race-meta">…</span>
+          <span class="ro" id="race-acc">…</span>
+          <span class="ro" id="race-best">…</span>
+          <span class="demo-note" id="race-what">—</span>
+        </div>
+        <figcaption><strong>Play with it:</strong> <em>left</em>, the
+          training points and the chosen method's boundary (dots trace it,
+          shading shows which class each region is assigned);
+          <em>right</em>, everyone's test error on 2,400 fresh points —
+          ★ marks the winner for this sample. Walk the scenarios and check
+          the book's verdicts: <strong>1</strong> LDA and logistic near the
+          top (their own assumption), KNN-1 wastes variance; <strong>2</strong>
+          only naive Bayes falls apart (it assumed the correlation away);
+          <strong>3</strong> heavy tails dents LDA and QDA more than
+          logistic; <strong>4</strong> QDA owns it (each class really does
+          have its own correlation); <strong>5</strong> the wiggly truth —
+          cross-validated KNN does best while KNN-1 does worst; <strong>6</strong>
+          six points per class — naive Bayes' cheap assumptions pay, QDA
+          estimates a noisy correlation, and KNN has almost nobody to vote.
+          Press <strong>New sample</strong> a few times: winners swap
+          sometimes. The book's boxplots from 100 draws are the honest
+          summary of exactly that wiggle.</figcaption>
+      </figure>
+
+      <p>(Housekeeping: the book states training sizes for scenarios 1, 3
+        and 6 — 20, 50 and 6 per class — and "as scenario 1" for scenario
+        2; this demo uses 20 per class for 4 and 120 points for 5, where the
+        text doesn't say. Test sets are 2,400 points; the book uses "a large
+        test set".)</p>
+
+      <p>The six verdicts, condensed from Figures 4.11–4.12:</p>
+
+      <table>
+        <thead>
+          <tr><th>Scenario</th><th>Truth</th><th>Winner(s)</th><th>Loser(s)</th></tr>
+        </thead>
+        <tbody>
+          <tr><td><strong>1</strong> independent normal, 20/class</td><td>straight boundary</td><td>LDA (its own model), logistic</td><td>KNN-1 (variance), QDA (over-flexible)</td></tr>
+          <tr><td><strong>2</strong> as 1, correlation −0.5</td><td>straight boundary</td><td>most methods, about tied</td><td>naive Bayes (independence violated)</td></tr>
+          <tr><td><strong>3</strong> t-distributed, correlated, 50/class</td><td>straight boundary</td><td>logistic &gt; LDA (normality broken)</td><td>QDA (non-normality), naive Bayes</td></tr>
+          <tr><td><strong>4</strong> correlations +0.5 / −0.5</td><td>quadratic boundary</td><td>QDA, clearly</td><td>naive Bayes; linear methods limited</td></tr>
+          <tr><td><strong>5</strong> labels from a wiggly function</td><td>complex boundary</td><td>KNN-CV; QDA and naive Bayes next</td><td>KNN-1 (worst of all — smoothness matters)</td></tr>
+          <tr><td><strong>6</strong> unequal spreads, n = 6/class</td><td>non-linear (unequal Σ)</td><td>naive Bayes (assumptions met)</td><td>LDA and logistic (bias); KNN (no data)</td></tr>
+        </tbody>
+      </table>
+
+      <p>The pattern the book wants you to internalise:</p>
+
+      <div class="callout ok">
+        <p class="callout-title">The selection rule, in three lines</p>
+        <p>Boundary actually straight → LDA or logistic regression (pick
+          logistic when normality is doubtful). Boundary moderately bent →
+          QDA or naive Bayes (QDA if n supports the extra parameters, naive
+          Bayes if n is tight). Boundary seriously complicated → KNN or
+          another non-parametric method, <em>but only with enough data and
+          a well-chosen smoothness</em> — Chapter 5 is exactly about
+          choosing it. And no matter what: transformations (X², X³ terms in
+          logistic; cross-products in LDA) let you slide between the
+          extremes, which is the bias–variance dial again.</p>
+      </div>
+
+      <p>That last point closes the section: adding all quadratic and
+        cross-product terms to LDA gives a model with QDA's
+        <em>form</em> (different estimates, same shape), so "LDA versus QDA"
+        is not a binary choice but a slider — how much curvature are you
+        willing to pay for, with the data you have?</p>
+    </section>
+
+    <footer style="margin-top:64px;font-size:13.5px;color:var(--muted);">
+      <p class="further">Source: ISLP, Section 4.5 (pp. 161–166). The race
+        demo fits all six methods live in JavaScript — LDA/QDA/naive Bayes
+        from moment estimates, logistic by Newton's method, KNN by
+        brute-force votes, K chosen by 5-fold cross-validation — and scores
+        them on a fresh test set every time you press the button.</p>
+      <p>ISLP Plainly — <span data-year>2026</span></p>
+    </footer>
+  </main>
+
+  <!-- ======================= page TOC ======================= -->
+  <details class="page-toc" id="page-toc" open>
+    <summary>On this page</summary>
+    <p class="toc-title">On this page</p>
+    <nav aria-label="Table of contents">
+      <ol></ol>
+    </nav>
+  </details>
+</div>
+
+<div class="scrim" id="scrim"></div>
+
+</body>
+</html>

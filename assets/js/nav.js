@@ -24,7 +24,14 @@
       { href: '2-4-exercises.html', num: '2.4', label: 'Exercises' }
     ] },
     { n: 3, title: 'Linear regression', read: 'pp. 69–134', sections: [] },
-    { n: 4, title: 'Classification', read: 'pp. 135–200', sections: [] },
+    { n: 4, title: 'Classification', read: 'pp. 135–200', sections: [
+      { href: '4-1-an-overview-of-classification.html', num: '4.1', label: 'An overview of classification' },
+      { href: '4-2-why-not-linear-regression.html', num: '4.2', label: 'Why not linear regression?' },
+      { href: '4-3-logistic-regression.html', num: '4.3', label: 'Logistic regression' },
+      { href: '4-4-generative-models-for-classification.html', num: '4.4', label: 'Generative models for classification' },
+      { href: '4-5-a-comparison-of-classification-methods.html', num: '4.5', label: 'A comparison of classification methods' },
+      { href: '4-6-generalized-linear-models.html', num: '4.6', label: 'Generalized linear models' }
+    ] },
     { n: 5, title: 'Resampling methods', read: 'pp. 201–228', sections: [] },
     { n: 6, title: 'Model selection and regularization', read: 'pp. 229–288', sections: [] },
     { n: 7, title: 'Moving beyond linearity', read: 'pp. 289–330', sections: [] },

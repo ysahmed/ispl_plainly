@@ -204,13 +204,15 @@
       if (tx < p.l - 2 || tx > this.w - p.r + 2) continue;
       c.fillText(fmtTick(xt[i2]), tx, this.h - p.b + 6);
     }
-    // y tick labels
-    c.textAlign = 'right';
-    c.textBaseline = 'middle';
-    for (var j2 = 0; j2 < yt.length; j2++) {
-      var ty = this.yToPx(yt[j2]);
-      if (ty < p.t - 2 || ty > this.h - p.b + 2) continue;
-      c.fillText(fmtTick(yt[j2]), p.l - 7, ty);
+    // y tick labels (suppressible with noYTicks for categorical rows)
+    if (!this.o.noYTicks) {
+      c.textAlign = 'right';
+      c.textBaseline = 'middle';
+      for (var j2 = 0; j2 < yt.length; j2++) {
+        var ty = this.yToPx(yt[j2]);
+        if (ty < p.t - 2 || ty > this.h - p.b + 2) continue;
+        c.fillText(fmtTick(yt[j2]), p.l - 7, ty);
+      }
     }
 
     // axis titles

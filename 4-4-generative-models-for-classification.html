@@ -1,0 +1,558 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>4.4 · Generative models for classification — ISLP Plainly</title>
+<meta name="description" content="ISLP section 4.4 in plain language: Bayes' theorem flipped around, LDA for one and many predictors, confusion matrices, sensitivity, thresholds and the ROC curve, QDA's own covariance per class, and naive Bayes' independence trick — with two interactive demos.">
+<link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css">
+<link rel="stylesheet" href="assets/css/style.css">
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/contrib/auto-render.min.js"></script>
+<script defer src="assets/js/plots.js"></script>
+<script defer src="assets/js/nav.js"></script>
+<script defer src="assets/js/demos/boundary-lda.js"></script>
+<script defer src="assets/js/demos/roc-threshold.js"></script>
+<script defer src="assets/js/common.js"></script>
+</head>
+<body>
+
+<a class="skip-link" href="#main">Skip to content</a>
+
+<header class="topbar">
+  <button class="icon-btn" data-sidebar-toggle aria-label="Open navigation menu" aria-controls="sidebar">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 7h16M4 12h16M4 17h16"/></svg>
+  </button>
+  <span class="topbar-title">4.4 · Generative models for classification</span>
+</header>
+
+<div class="app">
+
+  <!-- ======================= sidebar ======================= -->
+  <aside class="sidebar" id="sidebar">
+    <div class="brand">
+      <span class="logo">∑</span>
+      <a href="index.html">ISLP Plainly</a>
+    </div>
+
+    <nav class="side-nav" aria-label="Site navigation"></nav>
+
+    <div class="side-foot">
+      <button class="theme-btn" data-theme-toggle type="button">
+        <svg class="sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2m0 16v2M4.9 4.9l1.4 1.4m11.4 11.4 1.4 1.4M2 12h2m16 0h2M4.9 19.1l1.4-1.4m11.4-11.4 1.4-1.4"/></svg>
+        <svg class="moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg>
+        <span class="theme-label">Dark mode</span>
+      </button>
+    </div>
+  </aside>
+
+  <!-- ======================= main ======================= -->
+  <main id="main">
+
+    <div class="page-head">
+      <p class="eyebrow">Chapter 4 · section 4.4 · book pages 146–160</p>
+      <h1>Generative models for classification</h1>
+      <p class="lede">Logistic regression asked "how probable is each
+        class?" and modelled the answer directly. The methods here go the
+        long way round: model what the <em>predictors</em> look like inside
+        each class, then use Bayes' theorem to turn that around into class
+        probabilities. Three flavours — LDA, QDA, naive Bayes — differ only
+        in how much shape they assume.</p>
+    </div>
+
+    <section id="reading">
+      <h2>Reading</h2>
+      <ul class="reading">
+        <li><span class="r-label">Read</span>
+          <span class="r-body">Section 4.4 in full (pp. 146–160). The
+            introduction and 4.4.1 are the concept; 4.4.2 is the longest
+            stretch (confusion matrices and the ROC curve appear here and
+            are used forever after); 4.4.3–4.4.4 are short variants.</span></li>
+        <li><span class="r-label">Skim</span>
+          <span class="r-body">The density formulas (4.16, 4.23) — you need
+            the idea (a bell curve per class), not the algebra. Keep
+            Tables 4.6–4.7 (the jargon dictionary of rates) where you can
+            find them.</span></li>
+        <li><span class="r-label">Then</span>
+          <span class="r-body">Section 4.5 lines all these methods up
+            against logistic regression and KNN to decide when each one
+            wins.</span></li>
+      </ul>
+
+      <div class="keybox">
+        <p class="keybox-title">Key ideas</p>
+        <p>A generative model estimates, for each class, the <em>density of
+          the predictors</em> f<sub>k</sub>(x) and the class's prior share
+          π<sub>k</sub>, then Bayes' theorem converts them to
+          posterior probabilities. <strong>LDA</strong> assumes a bell curve
+          per class with one <em>shared</em> covariance — boundaries are
+          straight. <strong>QDA</strong> gives each class its own covariance
+          — boundaries bend. <strong>Naive Bayes</strong> assumes the
+          predictors are independent within each class — boundaries are
+          made of added-up per-feature pieces. None is always best; the
+          choice is bias–variance as always. Judging them needs new
+          vocabulary: confusion matrix, sensitivity, specificity, threshold,
+          ROC curve, AUC.</p>
+      </div>
+
+      <h3>What you will know afterwards</h3>
+      <ul class="chips">
+        <li class="chip">direct vs generative modelling</li>
+        <li class="chip">prior · density · posterior</li>
+        <li class="chip">LDA: shared covariance, straight boundary</li>
+        <li class="chip">confusion matrix</li>
+        <li class="chip">sensitivity vs specificity</li>
+        <li class="chip">threshold trade-off</li>
+        <li class="chip">ROC curve and AUC</li>
+        <li class="chip">QDA: own covariance, bent boundary</li>
+        <li class="chip">naive Bayes: independence assumption</li>
+      </ul>
+    </section>
+
+    <section id="bayes-flip">
+      <h2>1. Turn Bayes' theorem around (4.4 intro)</h2>
+
+      <p>Logistic regression models Pr(Y | X) — the answer directly. The
+        generative approach models the two ingredients Pr(Y) and the
+        distribution of X <em>given</em> Y, and lets Bayes' theorem assemble
+        the answer:</p>
+
+      $$p_k(x) = \Pr(Y = k \mid X = x) = \frac{\pi_k\, f_k(x)}{\sum_{l=1}^{K} \pi_l\, f_l(x)}$$
+
+      <div class="defs">
+        <div><span class="sym">π<sub>k</sub></span>
+          <span class="mean"><strong>The prior:</strong> how common class k
+            is before you see any predictors. Estimate it as the fraction of
+            training rows in that class (Default: 0.0333 for
+            "default").</span></div>
+        <div><span class="sym">f<sub>k</sub>(x)</span>
+          <span class="mean"><strong>The density:</strong> how typical these
+            predictor values are for class k — "a person with balance <span class="usd">$</span>2,400
+            is a rare breed among non-defaulters". This is the hard part to
+            estimate: it is a full joint distribution over all p
+            predictors.</span></div>
+        <div><span class="sym">p<sub>k</sub>(x)</span>
+          <span class="mean"><strong>The posterior:</strong> the
+            probability of class k <em>after</em> the evidence — what the
+            classifier thresholds. Priors × evidence, divided by the total
+            across all classes so the K numbers sum to 1.</span></div>
+      </div>
+
+      <p>Classify to the class with the largest posterior — that is the
+        <strong>Bayes classifier</strong> from Section 2.2.3, the rule with
+        the lowest possible error rate <em>if the densities are correctly
+        specified</em>. So generative methods are in the business of
+        guessing f<sub>k</sub> well.</p>
+
+      <p>Why bother with the detour when 4.3's logistic model is right
+        there? The book gives three reasons: when classes are well
+        separated, logistic's coefficient estimates become unstable while
+        generative models stay steady; if the predictors really are
+        bell-shaped within class and your sample is small, the extra
+        assumption buys accuracy; and the framework extends naturally to
+        K &gt; 2 classes. Assumptions, paid for with assumptions — the usual
+        trade.</p>
+    </section>
+
+    <section id="lda-p1">
+      <h2>2. LDA with one predictor (4.4.1)</h2>
+
+      <p>With a single predictor, assume each class's values come from a
+        normal (bell) curve with its own mean μ<sub>k</sub> but a
+        <strong>shared variance σ²</strong>:</p>
+
+      $$X \mid Y = k \;\sim\; N(\mu_k, \sigma^2)$$
+
+      <p>Drop those two bell curves into Bayes' theorem and the winning
+        quantity per class — the <strong>discriminant function</strong> —
+        comes out as</p>
+
+      $$\delta_k(x) = \frac{x\,\mu_k}{\sigma^2} - \frac{\mu_k^2}{2\sigma^2} + \log \pi_k$$
+
+      <p>and you assign x to the class with the largest δ. With two equally
+        common classes the boundary collapses to one number:</p>
+
+      $$x = \frac{\mu_1 + \mu_2}{2}$$
+
+      <p><em>The midpoint of the two class means.</em> That is the whole of
+        one-dimensional LDA: measure where each group sits, cut in the
+        middle (adjusting for unequal priors and using the shared spread to
+        know how far apart is "far enough").</p>
+
+      <p>The book's Figure 4.4 works it out concretely: class means at
+        −1.25 and +1.25, variance 1, 20 observations drawn from each class.
+        The true (Bayes) boundary is at 0 with an irreducible error of
+        <strong>10.6%</strong> — the tails overlap, some mistakes are
+        unavoidable. LDA, estimating from the 40 points, lands its boundary
+        slightly off-centre and gets <strong>11.1%</strong>: half a percent
+        above the unattainable floor. The estimates behind it (4.20–4.21):
+        μ̂<sub>k</sub> is just class k's sample mean; σ̂² pools the two
+        within-class variances (weighting by nk − 1, dividing by n − K);
+        π̂<sub>k</sub> = n<sub>k</sub>/n. Because δ<sub>k</sub>(x) is a
+        straight-line function of x, the method is
+        <strong>linear</strong> discriminant analysis.</p>
+    </section>
+
+    <section id="lda-multivariate">
+      <h2>3. LDA with many predictors (4.4.2)</h2>
+
+      <p>Real problems have p &gt; 1 predictors, so we need a multivariate
+        normal: a mean vector (the centre of the cloud) and a covariance
+        matrix (its spread and tilt). The off-diagonal entries carry the
+        <em>association</em> between predictors — Figure 4.5 shows the same
+        cloud at correlation 0 (a round blob) and 0.7 (a tilted ellipse).
+        LDA's assumption, once again, is that <strong>all K classes share
+        one covariance matrix</strong>. Plugging into Bayes gives</p>
+
+      $$\delta_k(x) = x^\mathsf{T} \Sigma^{-1} \mu_k - \tfrac{1}{2}\mu_k^\mathsf{T} \Sigma^{-1} \mu_k + \log \pi_k$$
+
+      <p>— still a straight-line function of x (in two predictors: a line;
+        in three: a plane; more: a flat slicing surface — that is the "linear"
+        in LDA). Estimating needs K mean vectors plus one covariance matrix.</p>
+
+      <p>Figure 4.6 shows three classes with 20 observations each: three
+        Bayes boundaries (one per pair of classes — line 1-vs-2, 1-vs-3,
+        2-vs-3) carving the space into three regions, and the LDA lines
+        sitting nearly on top of them. Test error: Bayes <strong>0.0746</strong>,
+        LDA <strong>0.0770</strong> — LDA is doing well.</p>
+
+      <h3 id="confusion">LDA on Default: 2.75% error, and why that's not the end of the story</h3>
+
+      <p>Fit LDA to Default using balance and student status: training
+        error <strong>2.75%</strong>. The book refuses to let that number
+        stand unqualified, with two caveats:</p>
+
+      <ul>
+        <li>Training error is usually lower than test error — the real
+          quantity of interest. Not a big worry here (p = 2, n = 10,000).</li>
+        <li>But also: 3.33% of the sample defaulted, so a
+          <strong>null classifier</strong> that always predicts "no default"
+          already achieves 3.33%. LDA's 2.75% beats it only "by a bit".</li>
+      </ul>
+
+      <p>To see what LDA is actually doing, break the errors apart — the
+        <strong>confusion matrix</strong>, Table 4.4:</p>
+
+      <table>
+        <thead>
+          <tr><th></th><th>true No</th><th>true Yes</th><th>Total</th></tr>
+        </thead>
+        <tbody>
+          <tr><td><strong>predicted No</strong></td><td>9644</td><td>252</td><td>9896</td></tr>
+          <tr><td><strong>predicted Yes</strong></td><td>23</td><td>81</td><td>104</td></tr>
+          <tr><td><strong>Total</strong></td><td>9667</td><td>333</td><td>10000</td></tr>
+        </tbody>
+      </table>
+
+      <p>Read it as counts of mistakes, not rates. LDA flagged 104 people as
+        defaulters: 81 were right, 23 were innocent — a tiny false-alarm
+        rate (23 out of 9,667 non-defaulters). Sounds great, until the other
+        diagonal: <strong>of the 333 real defaulters, 252 — 75.7% — were
+        missed.</strong> The vocabulary for the two directions:</p>
+
+      <ul>
+        <li><strong>Sensitivity</strong> (recall): share of true defaulters
+          correctly identified = 81/333 = <strong>24.3%</strong>.</li>
+        <li><strong>Specificity</strong>: share of non-defaulters correctly
+          identified = 1 − 23/9667 = <strong>99.8%</strong>.</li>
+      </ul>
+
+      <div class="callout">
+        <p class="callout-title">Why the Bayes classifier is so lopsided here</p>
+        <p>LDA approximates the Bayes rule, and Bayes minimises the
+          <em>total</em> number of errors — no matter which class they come
+          from. With 3.3% defaulters, the cheapest way to minimise total
+          errors is to be conservative about flagging "default". For a
+          credit company hunting for risky customers, missing 76% of them
+          may be unacceptable — so the company overrides Bayes and changes
+          the <em>threshold</em>.</p>
+      </div>
+
+      <h3 id="threshold">Move the threshold, trade one error for the other</h3>
+
+      <p>The Bayes rule flags default when the posterior exceeds 0.5
+        (equation 4.26). Lower it — say flag when
+        <strong>Pr(default | x) &gt; 0.2</strong> (4.27) — and the same
+        fitted model makes more aggressive calls. Table 4.5 shows the new
+        counts:</p>
+
+      <table>
+        <thead>
+          <tr><th></th><th>true No</th><th>true Yes</th><th>Total</th></tr>
+        </thead>
+        <tbody>
+          <tr><td><strong>predicted No</strong></td><td>9432</td><td>138</td><td>9570</td></tr>
+          <tr><td><strong>predicted Yes</strong></td><td>235</td><td>195</td><td>430</td></tr>
+          <tr><td><strong>Total</strong></td><td>9667</td><td>333</td><td>10000</td></tr>
+        </tbody>
+      </table>
+
+      <p>Caught defaulters jump from 81 to <strong>195</strong> (misses fall
+        from 75.7% to 41.4%), at the price of false alarms rising 23 → 235
+        and the <em>overall</em> error creeping up to 3.73%. Which is better?
+        The book: that is a domain-knowledge question — it depends on what a
+        missed defaulter costs versus an unnecessary phone call. Figure 4.7
+        draws the whole trade: overall error is lowest at threshold 0.5 (of
+        course — that is Bayes), the defaulter-miss rate falls steadily as
+        you lower the threshold, and the non-defaulter error rises.</p>
+
+      <h3 id="roc">The ROC curve: every threshold at once</h3>
+
+      <p>The <strong>ROC</strong> (receiver operating characteristic)
+        curve sweeps the threshold from strict to reckless and plots the two
+        rates against each other: <strong>true positive rate</strong>
+        (= sensitivity) on the y-axis, <strong>false positive rate</strong>
+        (= 1 − specificity) on the x-axis. The ideal classifier hugs the
+        top-left corner; the diagonal is the "no information" guess. One
+        number summarises it — the <strong>AUC</strong>, area under the
+        curve. For LDA on Default the book reports AUC = <strong>0.95</strong>
+        ("very good"; chance is 0.5), and notes logistic regression's ROC is
+        virtually indistinguishable. Because one slider produces all of
+        this, here is the machinery in one demo:</p>
+
+      <figure class="demo" id="demo-roc">
+        <div class="demo-body grid2">
+          <canvas id="cv-thresh"></canvas>
+          <canvas id="cv-roc"></canvas>
+        </div>
+        <div class="demo-controls">
+          <span class="ctrl">
+            <label for="thr-slider">Threshold</label>
+            <input type="range" id="thr-slider" min="0.05" max="0.95" step="0.01" value="0.50">
+          </span>
+          <span class="ro" id="thr-val">threshold = <b>0.50</b></span>
+          <span class="ro" id="thr-tp">TP <b>—</b></span>
+          <span class="ro" id="thr-fp">FP <b>—</b></span>
+          <span class="ro" id="thr-fn">FN <b>—</b></span>
+          <span class="ro" id="thr-tn">TN <b>—</b></span>
+          <span class="ro" id="thr-tpr">recall —</span>
+          <span class="ro" id="thr-prec">precision —</span>
+          <span class="ro" id="thr-acc">accuracy —</span>
+          <span class="ro" id="thr-auc">AUC —</span>
+        </div>
+        <figcaption><strong>Play with it:</strong> a stand-in for Default
+          (200 non-defaulters, 120 defaulters) scored by a fitted model.
+          <em>Left:</em> everyone's predicted probability, split by true
+          class — the overlap between the two humps <em>is</em> the
+          irreducible error. The vertical line is the threshold; the shaded
+          red zones are mistakes: right of the line = false positives, left
+          = false negatives. <em>Right:</em> the same cut as one point on
+          the ROC curve — drag left and the point slides toward
+          "catches everyone, flags many innocents"; drag right and it sinks
+          toward "pristine flags, misses the class". The AUC readout never
+          moves: it scores the classifier across <em>all</em> thresholds at
+          once, which is why it compares models fairly. Every pair of
+          TP/FP/TN/FN readouts matches Tables 4.6–4.7's definitions —
+          precision, recall and accuracy are all computed from those four
+          counts.</figcaption>
+      </figure>
+
+      <p>The book closes 4.4.2 with the jargon dictionary, because the same
+        four counts travel under many names (Tables 4.6–4.7). From the four
+        cells (TN, FN, FP, TP):</p>
+
+      <table>
+        <thead>
+          <tr><th>Name</th><th>Definition</th><th>Synonyms</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>False positive rate</td><td>FP / N</td><td>type I error, 1 − specificity</td></tr>
+          <tr><td>True positive rate</td><td>TP / P</td><td>power, sensitivity, recall, 1 − type II error</td></tr>
+          <tr><td>Positive predictive value</td><td>TP / P*</td><td>precision, 1 − false discovery proportion</td></tr>
+          <tr><td>Negative predictive value</td><td>TN / N*</td><td>—</td></tr>
+        </tbody>
+      </table>
+
+      <p>Note the denominators: the two <em>rates</em> divide by the actual
+        class totals (all real positives / all real negatives); the
+        <em>predictive values</em> divide by what the classifier predicted
+        (all it flagged / all it cleared). Mixing them up is the classic
+        mistake — "24.3% of defaulters are caught" and "78% of those flagged
+        really default" are statements about different denominators.</p>
+    </section>
+
+    <section id="qda">
+      <h2>4. QDA: one covariance per class (4.4.3)</h2>
+
+      <p><strong>Quadratic discriminant analysis</strong> keeps the bell
+        curves and Bayes' theorem but drops the shared-covariance
+        assumption: class k gets its own Σ<sub>k</sub>. Its discriminant
+        function</p>
+
+      $$\delta_k(x) = -\tfrac{1}{2}(x - \mu_k)^\mathsf{T} \Sigma_k^{-1}(x - \mu_k) - \tfrac{1}{2}\log|\Sigma_k| + \log \pi_k$$
+
+      <p>contains x multiplied by itself (the x<sup>T</sup>Σ<sup>−1</sup>x
+        term), so the boundary between classes is a <em>curve</em> — hence
+        "quadratic". Which is better? Bias–variance again, counted in
+        parameters: with p predictors a covariance matrix has p(p+1)/2
+        entries, so QDA estimates K·p(p+1)/2 of them — with 50 predictors
+        "some multiple of 1,275", says the book — while LDA shares one. LDA
+        therefore has much lower variance; if the shared-spread assumption
+        is badly wrong it pays in bias instead. Rule of thumb from the
+        book: <strong>few training rows → LDA; very many rows, or clearly
+        unequal spreads → QDA.</strong></p>
+
+      <p>The demo below is Figure 4.9 made draggable: two Gaussian classes,
+        four candidate rules (the true Bayes rule, LDA, QDA, KNN). Switch
+        the data between equal and unequal spread and watch which boundary
+        still tracks the Bayes boundary:</p>
+
+      <figure class="demo" id="demo-lda">
+        <div class="demo-body"><canvas id="cv-lda"></canvas></div>
+        <div class="demo-controls">
+          <span class="ctrl">
+            <label for="bnd-data">Data</label>
+            <select id="bnd-data">
+              <option value="equal">equal spread</option>
+              <option value="unequal">unequal spread</option>
+            </select>
+          </span>
+          <span class="ctrl">
+            <label for="bnd-method">Classifier</label>
+            <select id="bnd-method">
+              <option value="bayes">Bayes (the ideal)</option>
+              <option value="lda">LDA</option>
+              <option value="qda">QDA</option>
+              <option value="knn">KNN (K = 15)</option>
+            </select>
+          </span>
+          <span class="ro" id="bnd-acc">train — · test —</span>
+          <span class="demo-note" id="bnd-what">—</span>
+        </div>
+        <figcaption><strong>Play with it:</strong> blue and amber are the two
+          classes; the dotted black line is the decision boundary and the
+          shading is each region's predicted class. <em>Equal spread:</em>
+          the Bayes boundary is straight, LDA lands on it, and QDA bends a
+          curve where the truth is flat — here the classes separate so
+          cleanly that every method ties near 99% test accuracy, so the
+          line's shape is what to watch (the book's overlapping Figure 4.9
+          shows what QDA's extra bend costs when the classes crowd each
+          other). <em>Unequal spread:</em>
+          the truth itself bends; now QDA tracks it at ~95% while LDA's straight line
+          cuts the wrong corner and drops to ~92%. KNN draws neither kind of line — its
+          boundary is a wobbly staircase from voting (Section 2.2.3). Watch
+          the train/test readout: KNN wins training almost every time and
+          still loses on test. The Bayes option is the truth (it uses the
+          real parameters), so nothing ever beats it — it is the floor
+          everyone else is measured against.</figcaption>
+      </figure>
+    </section>
+
+    <section id="naive-bayes">
+      <h2>5. Naive Bayes: assume the predictors don't talk (4.4.4)</h2>
+
+      <p>The third variant still uses Bayes' theorem, but attacks the hard
+        part — estimating the joint density f<sub>k</sub>(x) — with a single
+        cheeky assumption:</p>
+
+      $$f_k(x) = f_{k1}(x_1) \times f_{k2}(x_2) \times \cdots \times f_{kp}(x_p)$$
+
+      <p><em>"Within each class, the p predictors are independent."</em>
+        Instead of estimating one giant joint distribution (margins plus all
+        the associations between predictors — the very thing covariance
+        matrices capture for Gaussians), you estimate p separate
+        one-dimensional distributions per class and multiply. The
+        associations are not modelled; they are assumed away.</p>
+
+      <p>Do we believe it? The book is blunt: "In most settings, we do not."
+        So why does the method exist? Bias–variance: the assumption adds
+        bias but slashes variance — estimating a joint distribution needs
+        huge amounts of data, and when n is modest relative to p that
+        variance saving wins. "Naive Bayes is a good choice in a wide range
+        of settings" precisely because its wrongness is cheap and its
+        cheapness is valuable.</p>
+
+      <p>Each one-dimensional f<sub>kj</sub> can be estimated several ways:
+        a Gaussian within the class (which quietly makes this "QDA with a
+        diagonal covariance"), a histogram or smoothed kernel density
+        (non-parametric), or — for a categorical predictor — simple
+        proportions: if class k has 100 rows and its third predictor takes
+        values 1/2/3 in 32/55/13 of them, estimate f̂ as 0.32/0.55/0.13.</p>
+
+      <p>The book's toy example shows the multiplication explicitly:
+        p = 3 predictors (two quantitative, one three-level categorical),
+        K = 2 classes, equal priors. For the new observation
+        x* = (0.4, 1.5, 1):</p>
+
+      <ul>
+        <li>class 1 densities: f̂₁₁(0.4) = 0.368, f̂₁₂(1.5) = 0.484,
+          f̂₁₃(1) = 0.226 → product ≈ 0.0404</li>
+        <li>class 2 densities: f̂₂₁(0.4) = 0.030, f̂₂₂(1.5) = 0.130,
+          f̂₂₃(1) = 0.616 → product ≈ 0.0024</li>
+        <li>posterior: Pr(Y = 1 | x*) = <strong>0.944</strong> vs 0.056 —
+          a 94.4% vote for class 1 (Figure 4.10 draws all six density
+          estimates).</li>
+      </ul>
+
+      <p>On Default (each predictor Gaussian within class, independent), the
+        confusion matrices at both thresholds:</p>
+
+      <table>
+        <thead>
+          <tr><th>Naive Bayes, threshold 0.5 (Table 4.8)</th><th>true No</th><th>true Yes</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>predicted No</td><td>9621</td><td>244</td></tr>
+          <tr><td>predicted Yes</td><td>46</td><td>89</td></tr>
+        </tbody>
+      </table>
+      <table>
+        <thead>
+          <tr><th>Naive Bayes, threshold 0.2 (Table 4.9)</th><th>true No</th><th>true Yes</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>predicted No</td><td>9339</td><td>130</td></tr>
+          <tr><td>predicted Yes</td><td>328</td><td>203</td></tr>
+        </tbody>
+      </table>
+
+      <p>The comparisons are, the book says, <em>mixed</em>: against LDA at
+        0.5 (Table 4.4) LDA has slightly lower overall error but naive
+        Bayes catches more real defaulters (89 vs 81); at 0.2 (Table 4.5)
+        naive Bayes has the higher error rate yet "correctly predicts almost
+        two-thirds of the true defaults" (203 of 333 = 61% vs LDA's 195).
+        And the honest verdict: with n = 10,000 and p = 2, the variance
+        reduction isn't needed — expect naive Bayes to shine when
+        <strong>p is larger or n smaller</strong>, where estimating the
+        joint distribution is genuinely hard.</p>
+
+      <div class="callout ok">
+        <p class="callout-title">Section 4.4 in one line</p>
+        <p>Model the predictors per class and let Bayes' theorem do the
+          reasoning: LDA shares one covariance (straight boundaries, low
+          variance), QDA per-class covariances (bent boundaries, more
+          parameters), naive Bayes tears out all correlation between
+          predictors (cheap, biased, surprisingly strong on small samples).
+          Judge any of them with a confusion matrix — sensitivity and
+          specificity trade against each other as you move the threshold,
+          and the ROC curve/AUC score the whole trade at once. Section 4.5
+          decides which method wins when.</p>
+      </div>
+    </section>
+
+    <footer style="margin-top:64px;font-size:13.5px;color:var(--muted);">
+      <p class="further">Source: ISLP, Section 4.4 (pp. 146–160). The
+        boundary demo fits LDA/QDA/KNN live in JavaScript from simulated
+        Gaussian classes and evaluates every method on a held-out test set;
+        the ROC demo computes all four confusion counts from a fixed score
+        sample as you drag. The confusion-matrix tables are the book's
+        published Default results.</p>
+      <p>ISLP Plainly — <span data-year>2026</span></p>
+    </footer>
+  </main>
+
+  <!-- ======================= page TOC ======================= -->
+  <details class="page-toc" id="page-toc" open>
+    <summary>On this page</summary>
+    <p class="toc-title">On this page</p>
+    <nav aria-label="Table of contents">
+      <ol></ol>
+    </nav>
+  </details>
+</div>
+
+<div class="scrim" id="scrim"></div>
+
+</body>
+</html>

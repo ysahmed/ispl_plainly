@@ -1,0 +1,422 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>4.3 · Logistic regression — ISLP Plainly</title>
+<meta name="description" content="ISLP section 4.3 in plain language: the sigmoid, odds and log-odds, maximum likelihood, the Default coefficient tables, why the student coefficient flips sign, and multinomial logistic regression — with two interactive charts.">
+<link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css">
+<link rel="stylesheet" href="assets/css/style.css">
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/contrib/auto-render.min.js"></script>
+<script defer src="assets/js/plots.js"></script>
+<script defer src="assets/js/nav.js"></script>
+<script defer src="assets/data/ch04-data.js"></script>
+<script defer src="assets/js/demos/sigmoid.js"></script>
+<script defer src="assets/js/demos/logit-fit.js"></script>
+<script defer src="assets/js/common.js"></script>
+</head>
+<body>
+
+<a class="skip-link" href="#main">Skip to content</a>
+
+<header class="topbar">
+  <button class="icon-btn" data-sidebar-toggle aria-label="Open navigation menu" aria-controls="sidebar">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 7h16M4 12h16M4 17h16"/></svg>
+  </button>
+  <span class="topbar-title">4.3 · Logistic regression</span>
+</header>
+
+<div class="app">
+
+  <!-- ======================= sidebar ======================= -->
+  <aside class="sidebar" id="sidebar">
+    <div class="brand">
+      <span class="logo">∑</span>
+      <a href="index.html">ISLP Plainly</a>
+    </div>
+
+    <nav class="side-nav" aria-label="Site navigation"></nav>
+
+    <div class="side-foot">
+      <button class="theme-btn" data-theme-toggle type="button">
+        <svg class="sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2m0 16v2M4.9 4.9l1.4 1.4m11.4 11.4 1.4 1.4M2 12h2m16 0h2M4.9 19.1l1.4-1.4m11.4-11.4 1.4-1.4"/></svg>
+        <svg class="moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg>
+        <span class="theme-label">Dark mode</span>
+      </button>
+    </div>
+  </aside>
+
+  <!-- ======================= main ======================= -->
+  <main id="main">
+
+    <div class="page-head">
+      <p class="eyebrow">Chapter 4 · section 4.3 · book pages 138–145</p>
+      <h1>Logistic regression</h1>
+      <p class="lede">The fix for 4.2's broken line: keep the straight-line
+        score, but pass it through a curve that can only ever answer between
+        0 and 1. The coefficients stop being "units of Y" and become
+        <em>log-odds</em> — a phrase that looks alarming and translates to
+        one sentence: <em>how much does this predictor multiply the odds of
+        the event?</em></p>
+    </div>
+
+    <section id="reading">
+      <h2>Reading</h2>
+      <ul class="reading">
+        <li><span class="r-label">Read</span>
+          <span class="r-body">Section 4.3 in full (pp. 138–145). Subsections
+            4.3.1–4.3.3 are the core; 4.3.4's sign flip is the section's best
+            lesson; 4.3.5 is the two-page extension to 3+ classes.</span></li>
+        <li><span class="r-label">Skim</span>
+          <span class="r-body">The likelihood formula itself (4.5) — you
+            need to recognise it as "multiply the fitted probabilities of
+            what happened", not to reproduce it.</span></li>
+        <li><span class="r-label">Then</span>
+          <span class="r-body">Section 4.4 introduces the other family —
+            methods that model the predictors instead of the probability —
+            and where each approach wins.</span></li>
+      </ul>
+
+      <div class="keybox">
+        <p class="keybox-title">Key ideas</p>
+        <p>Logistic regression models the <em>probability</em> of a class as
+          a sigmoid (S-shaped curve) of a straight-line score, so predictions
+          can never leave [0, 1]. Coefficients are read as
+          <em>log-odds</em>: a one-unit increase in X changes the log-odds by
+          β, equivalently multiplies the odds by e<sup>β</sup> — not the
+          probability. Coefficients come from <em>maximum likelihood</em>
+          (make the observed outcomes most probable), with z-statistics and
+          p-values just like least squares. With several predictors, a
+          coefficient's sign can flip versus the single-predictor model —
+          correlation among predictors, not an error.</p>
+      </div>
+
+      <h3>What you will know afterwards</h3>
+      <ul class="chips">
+        <li class="chip">the logistic curve p(X) = eᶻ / (1 + eᶻ)</li>
+        <li class="chip">odds = p / (1 − p)</li>
+        <li class="chip">logit: log-odds linear in X</li>
+        <li class="chip">e^β = odds multiplier per unit</li>
+        <li class="chip">maximum likelihood vs least squares</li>
+        <li class="chip">z-statistic, SE, p-value</li>
+        <li class="chip">dummy predictors</li>
+        <li class="chip">coefficient sign flips (confounding)</li>
+        <li class="chip">multinomial: one log-odds line per class</li>
+      </ul>
+    </section>
+
+    <section id="logistic-model">
+      <h2>1. The logistic model (4.3.1)</h2>
+
+      <p>We want to model <em>p</em>(X) = Pr(default = Yes | X), which must
+        sit between 0 and 1 for <em>every</em> value of X. The straight line
+        of (4.1), p(X) = β₀ + β₁X, cannot promise that — as Figure 4.2
+        showed, it dips below zero for small balances and would exceed 1 for
+        large ones. So logistic regression squashes the straight line with
+        the <strong>logistic function</strong>:</p>
+
+      $$p(X) = \frac{e^{\beta_0 + \beta_1 X}}{1 + e^{\beta_0 + \beta_1 X}}$$
+
+      <p>Read it as: <em>"score the person with a straight line, then run
+        the score through the S-curve."</em> No matter how negative or huge
+        the score, the output is squeezed into (0, 1); near the middle the
+        curve is steep, at the ends it flattens. The book notes a sanity
+        check: the average fitted probability comes out 0.0333 either way —
+        exactly the overall default rate in the data, as it must.</p>
+
+      <h3 id="odds">Odds, and why the log of them</h3>
+
+      <p>Algebra on the formula gives the <strong>odds</strong>:</p>
+
+      $$\frac{p(X)}{1 - p(X)} = e^{\beta_0 + \beta_1 X}$$
+
+      <p>Odds are "how likely versus not", the language of the betting
+        track — the book's examples: odds of 1/4 means <em>1 in 5</em>
+        people default (p = 0.2), odds of 9 means <em>9 in 10</em> do
+        (p = 0.9). Odds run from 0 to ∞ — no ceiling at 1, which is exactly
+        why the exponent can be a plain straight line. Take the log of both
+        sides and you get the form the model actually uses:</p>
+
+      $$\log\left(\frac{p(X)}{1 - p(X)}\right) = \beta_0 + \beta_1 X$$
+
+      <p>This is the <strong>logit</strong> equation: the <em>log-odds</em>
+        is linear in X, even though the probability is not. Two properties
+        of β₁ follow, and the book stresses the second:</p>
+
+      <ul>
+        <li><strong>β₁ is a change in log-odds, so e<sup>β₁</sup> is a
+          multiplier on the odds.</strong> In the fitted Default model, a
+          <span class="usd">$</span>1 increase in balance has β₁ = 0.0055, so a <span class="usd">$</span>100 increase
+          multiplies the odds of default by e<sup>0.55</sup> ≈ 1.73 — each
+          extra hundred dollars makes default about 73% more likely <em>in
+          odds terms</em>.</li>
+        <li><strong>It is not a change in the probability.</strong> Adding
+          the same amount to the probability of someone near 0.5 and someone
+          near 0.01 is impossible — the S-curve flattens. What survives is
+          the <em>direction</em>: positive β₁ always means higher X ⇒ higher
+          probability of class 1, negative always the reverse.</li>
+      </ul>
+
+      <p>All of this is easier to feel than to parse. Hover the curve, drag
+        the threshold, watch what a change in the score does to the
+        probability:</p>
+
+      <figure class="demo" id="demo-sigmoid">
+        <div class="demo-body"><canvas id="cv-sigmoid"></canvas></div>
+        <div class="demo-controls">
+          <button class="btn" id="sig-deriv" type="button" aria-pressed="false">Show the slope</button>
+          <span class="ctrl">
+            <label for="sig-thr">Threshold</label>
+            <input type="range" id="sig-thr" min="0.10" max="0.90" step="0.05" value="0.50">
+          </span>
+          <span class="ro" id="sig-thr-read">threshold …</span>
+          <span class="ro" id="sig-read">hover the curve →</span>
+        </div>
+        <figcaption><strong>Play with it:</strong> the horizontal axis is
+          the straight-line score z = β₀ + β₁X (4.2's "Ŷ", unfettered), the
+          vertical axis is the probability the model reports. Hover to read
+          score → probability. <strong>Show the slope</strong> draws
+          σ × (1 − σ): steepest in the middle, flat at the ends — the
+          formal reason the same score change barely moves someone already
+          near 0 or 1. The threshold slider moves the decision line without
+          touching the model: same probabilities, different call — the trade-off
+          4.4 makes explicit.</figcaption>
+      </figure>
+    </section>
+
+    <section id="estimating">
+      <h2>2. Estimating the coefficients (4.3.2)</h2>
+
+      <p>How do the β̂ get chosen? Not by least squares — by
+        <strong>maximum likelihood</strong>: pick the coefficients that make
+        the observed data most probable under the model. Concretely, the
+        likelihood is a product over people:</p>
+
+      $$\ell(\beta_0, \beta_1) = \prod_{i:\,y_i = 1} p(x_i) \;\times \prod_{i:\,y_i = 0} \bigl(1 - p(x_i)\bigr)$$
+
+      <p>In words: <em>"for everyone who defaulted, multiply in their fitted
+        probability of default; for everyone who didn't, multiply in their
+        fitted probability of no default; then find the β that makes the
+        total as big as possible."</em> Push that product toward 1 and you
+        have fitted the model well. The book adds that least squares itself
+        is a special case of maximum likelihood — the same principle,
+        different distribution assumed.</p>
+
+      <p>Everything that follows least squares then carries over: each
+        coefficient gets a standard error, and the ratio</p>
+
+      $$z = \hat{\beta} / \mathrm{SE}(\hat{\beta})$$
+
+      <p>(the <strong>z-statistic</strong>, the logistic analogue of
+        regression's t-statistic) tests β against zero, with a p-value to
+        read off. Fitting default on balance alone gives the book's
+        Table 4.1:</p>
+
+      <table>
+        <thead>
+          <tr><th>Coefficient</th><th>Std. error</th><th>z-statistic</th><th>p-value</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>Intercept &nbsp;<span class="mono">−10.6513</span></td><td>0.3612</td><td>−29.5</td><td>&lt;0.0001</td></tr>
+          <tr><td>balance &nbsp;<span class="mono">0.0055</span></td><td>0.0002</td><td>24.9</td><td>&lt;0.0001</td></tr>
+        </tbody>
+      </table>
+
+      <p>Read the balance row the 4.3.1 way: <em>each extra dollar of
+        balance adds 0.0055 to the log-odds of default</em> — an enormous
+        z of 24.9, i.e. balance is unambiguously associated with default.
+        The intercept's job, as in Chapter 3, is to put the average fitted
+        probability back where the data says it is: 3.33%.</p>
+
+      <div class="callout">
+        <p class="callout-title">Why the coefficient is so tiny and so huge</p>
+        <p>0.0055 looks negligible until you remember it lives in log-odds:
+          over a <span class="usd">$</span>1,000 range of balance it accumulates 5.5 log-odds units,
+          a factor of e<sup>5.5</sup> ≈ 245 in the odds. Never judge a
+          logistic coefficient before you decide what a "unit" means —
+          in Section 4.6 the book will suggest reporting factors
+          (e<sup>β</sup>) instead.</p>
+      </div>
+    </section>
+
+    <section id="predictions">
+      <h2>3. Making predictions (4.3.3)</h2>
+
+      <p>With coefficients in hand, prediction is substitution. The book's
+        two worked examples from Table 4.1:</p>
+
+      <ul>
+        <li>balance = <span class="usd">$</span>1,000 → p̂ = e<sup>−10.6513+0.0055×1000</sup> / (1 + …)
+          = <strong>0.00576</strong> — under a 1% chance of default.</li>
+        <li>balance = <span class="usd">$</span>2,000 → p̂ = <strong>0.586</strong> — 58.6%: the same
+          person-plus-<span class="usd">$</span>1,000, transformed from near-certain to
+          more-likely-than-not by the S-curve's steep middle.</li>
+      </ul>
+
+      <p>Both are below (or above) thresholds you might choose: predict
+        default when p̂ &gt; 0.5 by default, or a conservative p̂ &gt; 0.1 if
+        missing a defaulter hurts more than a false alarm. Here is the
+        actual fit — drag the balance to any value and read the model's
+        verdict:</p>
+
+      <figure class="demo" id="demo-logit">
+        <div class="demo-body"><canvas id="cv-logit"></canvas></div>
+        <div class="demo-controls">
+          <span class="ctrl">
+            <label for="lf-balance">balance</label>
+            <input type="range" id="lf-balance" min="0" max="2650" step="10" value="2000">
+          </span>
+          <span class="ro" id="lf-p">…</span>
+          <span class="ro" id="lf-odds">…</span>
+          <span class="ro" id="lf-call">…</span>
+        </div>
+        <figcaption><strong>Play with it:</strong> all 10,000 Default rows
+          (blue = no default, orange = defaulted), with the fitted logistic
+          curve of Table 4.1 on top. Confirm the book's two numbers: drag to
+          <span class="usd">$</span>1,000 → p̂ ≈ 0.006; drag to <span class="usd">$</span>2,000 → p̂ ≈ 0.586. The dashed
+          crossing marks where the curve hits 0.5 — the balance at which the
+          model flips its call. Note how the curve hugs 0 at low balances
+          <em>without ever touching it</em>, and never exceeds 1: 4.2's
+          negative probabilities are gone by construction.</figcaption>
+      </figure>
+
+      <h3 id="qualitative-predictors">Qualitative predictors go in as dummies</h3>
+
+      <p>Predictors can be categories too, via the dummy trick from
+        Section 3.3.1. Fit default on <em>student status alone</em> and
+        Table 4.2 gives intercept −3.5041 and student[Yes] +0.4049
+        (p = 0.0004) — students look riskier:</p>
+
+      <ul>
+        <li>Pr(default | student) = 0.0431 — <strong>4.3%</strong></li>
+        <li>Pr(default | non-student) = 0.0292 — <strong>2.9%</strong></li>
+      </ul>
+
+      <p>Remember these two percentages. Section 4.3.4 is about what
+        happens to them.</p>
+    </section>
+
+    <section id="multiple">
+      <h2>4. Multiple logistic regression, and a sign that flips (4.3.4)</h2>
+
+      <p>Several predictors? Just as in Chapter 3, extend the score:</p>
+
+      $$\log\left(\frac{p(X)}{1 - p(X)}\right) = \beta_0 + \beta_1 X_1 + \cdots + \beta_p X_p$$
+
+      <p>Fit default on balance, income <em>and</em> student status
+        together — Table 4.3:</p>
+
+      <table>
+        <thead>
+          <tr><th>Coefficient</th><th>Std. error</th><th>z-statistic</th><th>p-value</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>Intercept &nbsp;<span class="mono">−10.8690</span></td><td>0.4923</td><td>−22.08</td><td>&lt;0.0001</td></tr>
+          <tr><td>balance &nbsp;<span class="mono">0.0057</span></td><td>0.0002</td><td>24.74</td><td>&lt;0.0001</td></tr>
+          <tr><td>income &nbsp;<span class="mono">0.0030</span></td><td>0.0082</td><td>0.37</td><td>0.7115</td></tr>
+          <tr><td>student[Yes] &nbsp;<span class="mono">−0.6468</span></td><td>0.2362</td><td>−2.74</td><td>0.0062</td></tr>
+        </tbody>
+      </table>
+
+      <p>Two surprises on one page:</p>
+
+      <ul>
+        <li><strong>Income does nothing</strong> once balance is in the
+          model (p = 0.72). Whatever income carried, balance already carries
+          it better.</li>
+        <li><strong>The student sign flipped.</strong> Alone, being a
+          student <em>raised</em> default risk (+0.4049, Table 4.2); holding
+          balance fixed, being a student <em>lowers</em> it (−0.6468, Table
+          4.3) — yet both are statistically significant. Is one of them
+          wrong?</li>
+      </ul>
+
+      <p>No — the coefficients answer <em>different questions</em>. Table
+        4.2 asks "are students more likely to default, on average?" (yes:
+        4.3% vs 2.9%). Table 4.3 asks "among people with the <em>same
+        balance</em>, are students safer?" (yes). Both are true because
+        students tend to carry more balance — students are riskier
+        <em>as a group</em> and safer <em>at matched balance</em>. The book
+        illustrates it with Figure 4.3: split the default rate by balance
+        for students and non-students (the curves sit close together) and
+        compare the marginal averages (students higher) — the difference
+        lives in the balance distribution, not in the student label.</p>
+
+      <div class="callout warn">
+        <p class="callout-title">The lesson to keep</p>
+        <p>A coefficient's sign is a statement about a <em>conditional</em>
+          comparison — "holding the other predictors fixed". Add or remove a
+          predictor and you change the question being answered. If a sign
+          flips between two models, both models can be right; go look at how
+          the predictors move together (this is the same machinery as
+          Chapter 3's confounding, and it will return in exercises
+          throughout the book).</p>
+      </div>
+    </section>
+
+    <section id="multinomial">
+      <h2>5. More than two classes: multinomial logistic (4.3.5)</h2>
+
+      <p>Binary model handles two classes; the emergency room has three.
+        <strong>Multinomial logistic regression</strong> generalises it: pick
+        one class as the <strong>baseline</strong> (say, stroke) and write
+        one log-odds equation comparing every other class to it:</p>
+
+      $$\log\left(\frac{\Pr(Y = k \mid X)}{\Pr(Y = K \mid X)}\right) = \beta_{k0} + \beta_{k1}X_1 + \cdots + \beta_{kp}X_p, \quad k = 1, \ldots, K-1$$
+
+      <p>For three conditions you get two straight lines of log-odds —
+        "overdose versus stroke" and "seizure versus stroke". Prediction:
+        compute all K fitted probabilities and assign the largest. Two
+        things worth knowing:</p>
+
+      <ul>
+        <li><strong>The baseline is a bookkeeping choice.</strong> Whichever
+          class you pick, the final predictions are identical — only the
+          meaning of the printed coefficients changes. Pick the class you
+          want to compare everything against.</li>
+        <li><strong>The softmax coding avoids a baseline entirely.</strong>
+          Equation (4.13) gives every class its own parameters
+          symmetrically, with the probabilities written as
+          e<sup>β<sub>k</sub>·X</sup> normalised across classes so they sum
+          to 1. The book notes this form appears again in Chapter 10's
+          neural networks — good to recognise it now.</li>
+      </ul>
+
+      <div class="callout ok">
+        <p class="callout-title">Section 4.3 in one line</p>
+        <p>Model the probability itself: score people with a straight line,
+          squash it through the S-curve, fit by maximum likelihood, read
+          coefficients as odds multipliers (e<sup>β</sup>), expect z-tests
+          like before — and remember that with several predictors each
+          coefficient answers a "holding the others fixed" question, which
+          is why the student sign flips when balance enters the model.
+          Section 4.4 turns the problem inside out instead: model the
+          predictors.</p>
+      </div>
+    </section>
+
+    <footer style="margin-top:64px;font-size:13.5px;color:var(--muted);">
+      <p class="further">Source: ISLP, Section 4.3 (pp. 138–145). Both demos
+        run live: the fitted curve uses Table 4.1's published coefficients
+        against all 10,000 Default rows, and the sigmoid demo's slope curve
+        is evaluated point by point in your browser.</p>
+      <p>ISLP Plainly — <span data-year>2026</span></p>
+    </footer>
+  </main>
+
+  <!-- ======================= page TOC ======================= -->
+  <details class="page-toc" id="page-toc" open>
+    <summary>On this page</summary>
+    <p class="toc-title">On this page</p>
+    <nav aria-label="Table of contents">
+      <ol></ol>
+    </nav>
+  </details>
+</div>
+
+<div class="scrim" id="scrim"></div>
+
+</body>
+</html>

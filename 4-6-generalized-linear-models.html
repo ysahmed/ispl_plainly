@@ -1,0 +1,376 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>4.6 · Generalized linear models — ISLP Plainly</title>
+<meta name="description" content="ISLP section 4.6 in plain language: why counts like bike rentals break linear regression (negative predictions, mean-variance link), how the Poisson distribution and log link fix it, and the three-part recipe — distribution, mean, link — that makes linear, logistic and Poisson regression one family.">
+<link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css">
+<link rel="stylesheet" href="assets/css/style.css">
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/contrib/auto-render.min.js"></script>
+<script defer src="assets/js/plots.js"></script>
+<script defer src="assets/js/nav.js"></script>
+<script defer src="assets/js/demos/poisson-counts.js"></script>
+<script defer src="assets/js/demos/pois-dist.js"></script>
+<script defer src="assets/js/common.js"></script>
+</head>
+<body>
+
+<a class="skip-link" href="#main">Skip to content</a>
+
+<header class="topbar">
+  <button class="icon-btn" data-sidebar-toggle aria-label="Open navigation menu" aria-controls="sidebar">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 7h16M4 12h16M4 17h16"/></svg>
+  </button>
+  <span class="topbar-title">4.6 · Generalized linear models</span>
+</header>
+
+<div class="app">
+
+  <!-- ======================= sidebar ======================= -->
+  <aside class="sidebar" id="sidebar">
+    <div class="brand">
+      <span class="logo">∑</span>
+      <a href="index.html">ISLP Plainly</a>
+    </div>
+
+    <nav class="side-nav" aria-label="Site navigation"></nav>
+
+    <div class="side-foot">
+      <button class="theme-btn" data-theme-toggle type="button">
+        <svg class="sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2m0 16v2M4.9 4.9l1.4 1.4m11.4 11.4 1.4 1.4M2 12h2m16 0h2M4.9 19.1l1.4-1.4m11.4-11.4 1.4-1.4"/></svg>
+        <svg class="moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg>
+        <span class="theme-label">Dark mode</span>
+      </button>
+    </div>
+  </aside>
+
+  <!-- ======================= main ======================= -->
+  <main id="main">
+
+    <div class="page-head">
+      <p class="eyebrow">Chapter 4 · section 4.6 · book pages 167–172</p>
+      <h1>Generalized linear models</h1>
+      <p class="lede">Categories were one way to break linear regression.
+        Counts are the other: how many bikers at 2 a.m. — a number that
+        cannot be negative, cannot be fractional in principle, and whose
+        noise grows with the size of the answer. The fix, Poisson
+        regression, turns out to be the third member of a family you have
+        already met: linear and logistic regression are in it too.</p>
+    </div>
+
+    <section id="reading">
+      <h2>Reading</h2>
+      <ul class="reading">
+        <li><span class="r-label">Read</span>
+          <span class="r-body">Section 4.6 in full (pp. 167–172). 4.6.1
+            lists what goes wrong (read all three failures); 4.6.2 is the
+            Poisson fix; 4.6.3 is the two-page generalisation that names
+            the whole family.</span></li>
+        <li><span class="r-label">Skim</span>
+          <span class="r-body">The Poisson likelihood (4.38) — it is the
+            maximum-likelihood trick from 4.3 again with a different
+            probability formula. The coefficient tables are for skimming
+            too; the ideas matter more than the digits.</span></li>
+        <li><span class="r-label">Then</span>
+          <span class="r-body">Section 4.7's lab fits all of Chapter 4's
+            methods in Python (when it is written); otherwise Chapter 5,
+            which is about measuring accuracy honestly.</span></li>
+      </ul>
+
+      <div class="keybox">
+        <p class="keybox-title">Key ideas</p>
+        <p>Counts are neither categories nor continuous numbers, and linear
+          regression fails them three ways: <em>negative predictions</em>
+          (~10% of the Bikeshare fits), <em>variance that grows with the
+          mean</em> (busy hours are noisier hours — the model assumes
+          constant spread), and a <em>continuous error term on an integer
+          response</em>. The Poisson distribution models counts with one
+          parameter λ that is <em>both</em> the mean and the variance, and
+          Poisson regression lets log(λ) be a straight line in the
+          predictors — non-negative by construction, coefficients read as
+          multiplicative factors. Linear, logistic and Poisson regression
+          are then revealed as one recipe: choose a distribution, choose a
+          link function, make the linked mean linear. That recipe is a
+          <strong>generalized linear model</strong>.</p>
+      </div>
+
+      <h3>What you will know afterwards</h3>
+      <ul class="chips">
+        <li class="chip">three failures on count data</li>
+        <li class="chip">Bikeshare: the running example</li>
+        <li class="chip">Poisson: λ = mean = variance</li>
+        <li class="chip">log link keeps λ ≥ 0</li>
+        <li class="chip">coefficients as factors e^β</li>
+        <li class="chip">overdispersion (footnote)</li>
+        <li class="chip">link functions: identity, logit, log</li>
+        <li class="chip">exponential family</li>
+        <li class="chip">GLM = the general recipe</li>
+      </ul>
+    </section>
+
+    <section id="counts">
+      <h2>1. A response that is a count</h2>
+
+      <p>The <strong>Bikeshare</strong> data: the response
+        <em>bikers</em> is the number of people using a Washington, DC
+        bike-sharing program in a given hour. Predictors: <em>mnth</em>
+        (month), <em>hr</em> (hour, 0–23), <em>workingday</em> (1 if the day
+        is neither a weekend nor a holiday), <em>temp</em> (normalised
+        temperature), and <em>weathersit</em> — one of four levels: clear;
+        misty or cloudy; light rain or snow; heavy rain or snow. The book
+        treats mnth, hr and weathersit as qualitative.</p>
+
+      <p>Neither Chapter 3 nor Chapter 4 fits: the response is not a
+        category, and it is not an ordinary number either. So what happens
+        if we just run linear regression anyway? Section 4.6.1 shows the
+        results and then the problems.</p>
+    </section>
+
+    <section id="linear-bikeshare">
+      <h2>2. Linear regression on Bikeshare — and its three failures (4.6.1)</h2>
+
+      <p>The fit looks plausible (Table 4.10): temperature +157 bikers per
+        unit; cloudy weather −12.89; light rain −66.49; heavy rain −109.75
+        (not significant — very few such hours); workingday +1.27 with
+        p = 0.48, i.e. nothing. The month and hour coefficients (Figure
+        4.13) even make sense: highest in spring and autumn, lowest in
+        winter, peaks at commuting hours, trough overnight. "At first
+        glance… reasonable and intuitive," says the book. Then:</p>
+
+      <ol>
+        <li><strong>Negative predictions.</strong> 9.6% of the fitted
+          values are below zero — the model forecasts <em>minus</em> people
+          on a bike. Predictions like that undermine the coefficients,
+          confidence intervals and everything else the model reports.</li>
+        <li><strong>The variance is not constant.</strong> When few people
+          are expected, few actually show up (December, 1–4 a.m., raining:
+          mean <strong>5.05</strong> bikers, sd <strong>3.73</strong>); when
+          many are expected, the numbers swing wildly (April–June, 7–10
+          a.m., clear: mean <strong>243.59</strong>, sd
+          <strong>131.7</strong>). The mean moves, and the spread moves
+          with it — but the linear model assumes one constant σ² for
+          everyone. That mismatch (<em>heteroscedasticity</em>) breaks its
+          assumptions.</li>
+        <li><strong>Integer response, continuous error.</strong> The model
+          says Y = (sum of terms) + ε with ε continuous — so Y is
+          necessarily continuous. Counts are not.</li>
+      </ol>
+
+      <p>The quick fix the book considers: regress <em>log(Y)</em> instead.
+        That removes negative predictions (log of a count is fine) and
+        tames much of the spread problem — but interpretation becomes "a
+        unit of X raises the mean of the <em>log</em> of Y by β", and the
+        transform dies outright when Y can be 0. Better to change the model,
+        not the response.</p>
+    </section>
+
+    <section id="poisson">
+      <h2>3. Poisson regression (4.6.2)</h2>
+
+      <p>Start with the <strong>Poisson distribution</strong> — the
+        distribution of counts:</p>
+
+      $$\Pr(Y = k) = \frac{e^{-\lambda}\lambda^k}{k!}, \quad k = 0, 1, 2, \ldots$$
+
+      <p>One parameter, λ &gt; 0, and its two roles are the heart of the
+        idea:</p>
+
+      $$\lambda = E(Y) = \mathrm{Var}(Y)$$
+
+      <p><em>The mean equals the variance.</em> Quiet hours are quiet
+        <em>and</em> predictable; busy hours are busy <em>and</em>
+        unpredictable — exactly failure 2, written as a model. The book's
+        λ = 5 worked example: Pr(no users) = e<sup>−5</sup> = 0.0067,
+        Pr(1) = 0.034, Pr(2) = 0.084. Drag λ yourself and watch the mean
+        readout and the variance readout stay locked together:</p>
+
+      <figure class="demo" id="demo-poisdist">
+        <div class="demo-body"><canvas id="cv-poisdist"></canvas></div>
+        <div class="demo-controls">
+          <span class="ctrl">
+            <label for="pd-lambda">mean λ</label>
+            <input type="range" id="pd-lambda" min="1" max="15" step="0.5" value="5">
+          </span>
+          <span class="ro" id="pd-mean">…</span>
+          <span class="ro" id="pd-var">…</span>
+          <span class="ro" id="pd-head">…</span>
+        </div>
+        <figcaption><strong>Play with it:</strong> bars are the
+          probabilities of each count. At λ = 5 the readouts reproduce the
+          book's numbers (Pr(0) = 0.0067, Pr(1) = 0.034, Pr(2) = 0.084).
+          Drag the mean right: the distribution both shifts
+          <em>and</em> spreads — the variance readout tracks the mean
+          exactly, at every setting, because there is only one parameter to
+          move. Hover a bar for its probability. Note also that
+          Pr(Y) is never negative and never fractional: the support is
+          0, 1, 2, … by construction.</figcaption>
+      </figure>
+
+      <h3 id="log-link">Let the mean follow the predictors — through a log</h3>
+
+      <p>A fixed λ is boring; we want λ to depend on hour, weather and
+        month. The model (4.36–4.37):</p>
+
+      $$\log\bigl(\lambda(X_1, \ldots, X_p)\bigr) = \beta_0 + \beta_1 X_1 + \cdots + \beta_p X_p \quad\Longleftrightarrow\quad \lambda(X) = e^{\beta_0 + \beta_1 X_1 + \cdots + \beta_p X_p}$$
+
+      <p>Take the log of the mean — not of the response this time — and
+        make <em>that</em> linear. Two consequences fall out for free:
+        λ = e<sup>…</sup> can never be negative (failure 1 gone), and
+        because the model is built on the Poisson distribution, the
+        mean-variance lock stays in place (failure 2 gone). Estimation is
+        the familiar maximum likelihood of 4.3: multiply the fitted Poisson
+        probabilities of the counts you actually saw, maximise over the
+        β̂.</p>
+
+      <p>Fit it to Bikeshare (Table 4.11) and the story is qualitatively
+        the same as linear regression — same seasons, same rush hours,
+        temperature up, weather down — with three distinctions the book
+        draws:</p>
+
+      <table>
+        <thead>
+          <tr><th></th><th>Linear regression</th><th>Poisson regression</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><strong>Coefficient meaning</strong></td>
+            <td>β = added bikers, one-for-one</td>
+            <td>e<sup>β</sup> = <em>factor</em> on the mean: cloudy is
+              ×0.92 of clear (e<sup>−0.08</sup> = 0.923); rain multiplies
+              a further ×0.61 (e<sup>−0.5</sup> = 0.607), i.e. rainy hours
+              run at about 56% of clear-hour usage</td>
+          </tr>
+          <tr>
+            <td><strong>Variance</strong></td>
+            <td>constant σ² — wrong for this data</td>
+            <td>Var = mean by construction — busy hours are allowed to be
+              noisier</td>
+          </tr>
+          <tr>
+            <td><strong>Fitted values</strong></td>
+            <td>~10% negative (9.6%)</td>
+            <td>never negative — impossible by construction</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <p>Small but interesting: <em>workingday</em> is statistically
+        significant under the Poisson model (z = 7.5) yet not under the
+        linear model (p = 0.48) — changing the variance assumption changed
+        what the data could say. And the book's footnote to keep in mind:
+        the Bikeshare variance is actually <strong>much higher than the
+        mean</strong> — a condition called <strong>overdispersion</strong>
+        that inflates the z-statistics in Table 4.11. Correcting it needs
+        methods beyond this book; just know the printed z's are
+        optimistic.</p>
+
+      <p>Now the negative-prediction problem head-on. The demo fits both
+        models to a stylised night of bike counts — a count whose true
+        mean falls as the city sleeps:</p>
+
+      <figure class="demo" id="demo-poisson">
+        <div class="demo-body"><canvas id="cv-poisson"></canvas></div>
+        <div class="demo-controls">
+          <button class="btn" id="pois-line" type="button" aria-pressed="true">Least squares line</button>
+          <button class="btn primary" id="pois-pois" type="button" aria-pressed="true">Poisson fit</button>
+          <span class="ro" id="pois-lin">linear: …</span>
+          <span class="ro" id="pois-poiss">Poisson: …</span>
+        </div>
+        <figcaption><strong>Play with it:</strong> dots are counts for 24
+          hours of a night (a compact stand-in for the book's Bikeshare
+          example — same shape of problem, small enough to see every
+          point). The dashed <em>least squares</em> line is Chapter 3's
+          straight-line fit: to pass near the big early-evening counts it
+          tilts down through the small hours and the readout counts how
+          many hours end up with negative predictions — the book's Bikeshare
+          fit had 9.6% of hours in exactly that state. The solid
+          <em>Poisson</em> curve (fitted live in JavaScript by Newton's
+          method on the likelihood) bends to follow the counts and its
+          readout confirms: <em>never below zero</em>. Toggle either fit off
+          to see the data alone.</figcaption>
+      </figure>
+    </section>
+
+    <section id="glm">
+      <h2>4. The general recipe: generalized linear models (4.6.3)</h2>
+
+      <p>Step back and the three models of this book so far share one
+        skeleton. The book lays it out as two numbered ingredients plus the
+        link:</p>
+
+      <ol>
+        <li><strong>A distribution for Y given X.</strong> Linear
+          regression assumes Gaussian; logistic assumes Bernoulli
+          (success/failure); Poisson assumes Poisson (counts).</li>
+        <li><strong>The mean of Y as a function of the predictors.</strong>
+          Linear: E(Y | X) = β₀ + β₁X₁ + … (a straight line). Logistic:
+          E(Y | X) = e<sup>β·X</sup> / (1 + e<sup>β·X</sup>) (the sigmoid —
+          it <em>is</em> Pr(Y = 1 | X), since a Bernoulli's mean is its
+          probability). Poisson: E(Y | X) = e<sup>β·X</sup>.</li>
+        <li><strong>The link function η</strong> — a transformation that
+          makes the mean <em>linear</em>: η(E(Y | X)) = β₀ + β₁X₁ + …
+          The three links you have implicitly been using all along:
+          <table style="margin-top:10px">
+            <thead><tr><th>Model</th><th>Link η(μ)</th><th>What it does</th></tr></thead>
+            <tbody>
+              <tr><td>Linear</td><td>log nothing: η(μ) = μ (identity)</td><td>mean already linear — no transform</td></tr>
+              <tr><td>Logistic</td><td>η(μ) = log(μ / (1 − μ)) (logit)</td><td>compresses the (0, 1) probability onto the whole real line</td></tr>
+              <tr><td>Poisson</td><td>η(μ) = log(μ)</td><td>compresses the positive mean onto the whole real line</td></tr>
+            </tbody>
+          </table></li>
+      </ol>
+
+      <p>So 4.3's logit equation and 4.6.2's log-λ equation are the
+        <em>same equation</em> with a different link — and Chapter 3's
+        straight line is that equation with the identity link, i.e. no
+        transform at all. The Gaussian, Bernoulli and Poisson distributions
+        all belong to one larger club, the <strong>exponential family</strong>
+        (which also contains the exponential, Gamma and negative binomial
+        distributions — Gamma and negative binomial regression exist too,
+        though not in this book).</p>
+
+      <div class="callout ok">
+        <p class="callout-title">The definition, in one paragraph</p>
+        <p>Pick a distribution family for your response. Pick a link
+          function that maps its mean onto the real line. Declare the
+          linked mean to be a straight line in the predictors. Fit by
+          maximum likelihood. <em>Any</em> method following that recipe is a
+          <strong>generalized linear model (GLM)</strong> — so linear
+          regression, logistic regression and Poisson regression are not
+          three unrelated techniques but three settings of one machine:
+          change the distribution, change the link, everything else
+          (coefficients, z-statistics, likelihood thinking) carries over.
+          That is how Chapter 4 ends: categories were never a special case,
+          and neither were counts — they were link functions.</p>
+      </div>
+    </section>
+
+    <footer style="margin-top:64px;font-size:13.5px;color:var(--muted);">
+      <p class="further">Source: ISLP, Section 4.6 (pp. 167–172). The λ
+        demo evaluates the Poisson formula directly in your browser; the
+        counts demo fits both least squares (closed form) and Poisson
+        (Newton's method on the likelihood) live on every load. The
+        Bikeshare statistics quoted in the text (9.6%, 5.05 ± 3.73,
+        243.59 ± 131.7, Tables 4.10–4.11) are the book's published
+        results.</p>
+      <p>ISLP Plainly — <span data-year>2026</span></p>
+    </footer>
+  </main>
+
+  <!-- ======================= page TOC ======================= -->
+  <details class="page-toc" id="page-toc" open>
+    <summary>On this page</summary>
+    <p class="toc-title">On this page</p>
+    <nav aria-label="Table of contents">
+      <ol></ol>
+    </nav>
+  </details>
+</div>
+
+<div class="scrim" id="scrim"></div>
+
+</body>
+</html>

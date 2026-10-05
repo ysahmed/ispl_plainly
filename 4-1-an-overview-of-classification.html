@@ -1,0 +1,268 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>4.1 · An overview of classification — ISLP Plainly</title>
+<meta name="description" content="ISLP section 4.1 in plain language: what a classification problem is, why classifiers usually estimate probabilities first, the three examples that open Chapter 4, and the Default data set — with an interactive chart you can drag.">
+<link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css">
+<link rel="stylesheet" href="assets/css/style.css">
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/contrib/auto-render.min.js"></script>
+<script defer src="assets/js/plots.js"></script>
+<script defer src="assets/js/nav.js"></script>
+<script defer src="assets/data/ch04-data.js"></script>
+<script defer src="assets/js/demos/default-explore.js"></script>
+<script defer src="assets/js/common.js"></script>
+</head>
+<body>
+
+<a class="skip-link" href="#main">Skip to content</a>
+
+<header class="topbar">
+  <button class="icon-btn" data-sidebar-toggle aria-label="Open navigation menu" aria-controls="sidebar">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 7h16M4 12h16M4 17h16"/></svg>
+  </button>
+  <span class="topbar-title">4.1 · An overview of classification</span>
+</header>
+
+<div class="app">
+
+  <!-- ======================= sidebar ======================= -->
+  <aside class="sidebar" id="sidebar">
+    <div class="brand">
+      <span class="logo">∑</span>
+      <a href="index.html">ISLP Plainly</a>
+    </div>
+
+    <nav class="side-nav" aria-label="Site navigation"></nav>
+
+    <div class="side-foot">
+      <button class="theme-btn" data-theme-toggle type="button">
+        <svg class="sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2m0 16v2M4.9 4.9l1.4 1.4m11.4 11.4 1.4 1.4M2 12h2m16 0h2M4.9 19.1l1.4-1.4m11.4-11.4 1.4-1.4"/></svg>
+        <svg class="moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg>
+        <span class="theme-label">Dark mode</span>
+      </button>
+    </div>
+  </aside>
+
+  <!-- ======================= main ======================= -->
+  <main id="main">
+
+    <div class="page-head">
+      <p class="eyebrow">Chapter 4 · section 4.1 · book page 135</p>
+      <h1>An overview of classification</h1>
+      <p class="lede">Chapter 3 predicted numbers. This chapter predicts
+        <em>categories</em>: defaulted or not, fraud or not, which of three
+        illnesses. The shape of the problem changes very little — but the
+        answer is now a label, and almost every method handles it the same
+        two-step way: estimate probabilities, then pick the biggest.</p>
+    </div>
+
+    <section id="reading">
+      <h2>Reading</h2>
+      <ul class="reading">
+        <li><span class="r-label">Read</span>
+          <span class="r-body">The Chapter 4 introduction and section 4.1
+            (p. 135). It is short — two pages of framing and one picture of
+            the data the whole chapter runs on.</span></li>
+        <li><span class="r-label">Skim</span>
+          <span class="r-body">Nothing yet. The method list in the
+            introduction (logistic regression, LDA, QDA, naive Bayes, KNN)
+            is a table of contents, not something to memorise now.</span></li>
+        <li><span class="r-label">Then</span>
+          <span class="r-body">Section 4.2 answers a question you may not
+            have thought to ask: can't we just run linear regression on the
+            categories? The answer explains why this whole chapter exists.</span></li>
+      </ul>
+
+      <div class="keybox">
+        <p class="keybox-title">Key ideas</p>
+        <p>A <em>qualitative</em> response — eye colour, fraud yes/no, a
+          diagnosis — makes the problem <em>classification</em>: assigning an
+          observation to a <em>class</em>. Most methods do it in two steps:
+          first estimate the probability that the observation belongs to each
+          class, then assign it to the class with the highest probability.
+          That second step is a <em>threshold</em>, and where you set it
+          decides which kinds of mistakes you make. Classifiers are judged on
+          data they never trained on, exactly like regression models.</p>
+      </div>
+
+      <h3>What you will know afterwards</h3>
+      <ul class="chips">
+        <li class="chip">classification vs regression</li>
+        <li class="chip">qualitative = categorical response</li>
+        <li class="chip">class, classifier, classification</li>
+        <li class="chip">probabilities first, labels second</li>
+        <li class="chip">train/test split applies to classifiers too</li>
+        <li class="chip">the Default data set</li>
+      </ul>
+    </section>
+
+    <section id="problem">
+      <h2>1. What a classification problem looks like</h2>
+
+      <p>The chapter opens with three examples, and they are worth reading
+        slowly because between them they cover the whole species:</p>
+
+      <table>
+        <thead>
+          <tr><th>Situation</th><th>The classes</th><th>The predictors</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><strong>Emergency room</strong></td>
+            <td>stroke, drug overdose, epileptic seizure</td>
+            <td>the patient's symptoms</td>
+          </tr>
+          <tr>
+            <td><strong>Online banking</strong></td>
+            <td>fraudulent transaction, legitimate transaction</td>
+            <td>IP address, past transaction history, and so on</td>
+          </tr>
+          <tr>
+            <td><strong>DNA analysis</strong></td>
+            <td>mutation is disease-causing, mutation is harmless</td>
+            <td>sequence data from patients with and without the disease</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <p>Three things carry over from regression unchanged. You still get a
+        set of training observations (x<sub>1</sub>, y<sub>1</sub>), …,
+        (x<sub>n</sub>, y<sub>n</sub>) and build a <strong>classifier</strong>
+        from them. You still care about observations the classifier has never
+        seen — a rule that memorises the training rows is worthless in the
+        emergency room. And y<sub>i</sub> is still the answer column; it just
+        contains words instead of numbers.</p>
+
+      <div class="callout">
+        <p class="callout-title">Two steps, almost always</p>
+        <p>The book points out that many classifiers first predict
+          <em>the probability that the observation belongs to each
+          class</em>, and only then assign the class with the highest
+          probability. Keep that shape in mind: it is why a method called
+          "logistic <em>regression</em>" belongs in a classification chapter,
+          why thresholds matter, and why a classifier can be wrong in
+          interesting ways — you can have a confident label from a 51/49
+          probability and treat it exactly like a 99/1 one.</p>
+      </div>
+    </section>
+
+    <section id="default">
+      <h2>2. The chapter's test subject: the Default data</h2>
+
+      <p>Every example from here to the exercises runs on one simulated data
+        set, so meet it now. The <strong>Default</strong> data describes
+        10,000 credit-card holders. The response <em>Y</em> is whether they
+        <strong>defaulted</strong> on their payment that month (Yes/No — a
+        qualitative response, so this is classification, not regression). The
+        predictors are <strong>annual income</strong> and <strong>monthly
+        credit card balance</strong>.</p>
+
+      <p>Two facts about it set up everything that follows: only about
+        <strong>3.3% defaulted</strong> (333 people out of 10,000 — a rare
+        class), and defaulters tend to carry much higher balances. You can
+        see both at once — then try the simplest classifier there is, a
+        single vertical line:</p>
+
+      <figure class="demo" id="demo-default">
+        <div class="demo-body"><canvas id="cv-default"></canvas></div>
+        <div class="demo-controls">
+          <span class="ctrl">
+            <label for="de-thr">flag balances above</label>
+            <input type="range" id="de-thr" min="0" max="2500" step="50" value="1500">
+          </span>
+          <span class="ro" id="de-thr-read">flag above <b><span class="usd">$</span>1,500</b></span>
+          <span class="ro" id="de-caught">…</span>
+          <span class="ro" id="de-false">…</span>
+          <span class="ro" id="de-err">…</span>
+        </div>
+        <figcaption><strong>Play with it:</strong> every dot is one person —
+          blue for "no default", orange for "defaulted" (the 333 defaulters
+          are all drawn; every second non-defaulter is, for speed — the
+          picture is the same). The line is a complete classifier: <em>above
+          the line ⇒ predict default.</em> Drag it right and you stop
+          bothering innocent people but miss more defaulters; drag it left
+          and you catch more defaulters but flag more innocent people.
+          <strong>There is no setting with zero mistakes</strong> — the
+          "total error" readout never reaches zero, and that tension is the
+          subject of the whole chapter. Hover a dot to read that person's
+          numbers.</figcaption>
+      </figure>
+
+      <div class="callout warn">
+        <p class="callout-title">The book's own warning about this data</p>
+        <p>Section 4.1 flags that Figure 4.1 shows a <em>very pronounced</em>
+          relationship between balance and default, and that most real
+          problems are far messier — the link is deliberately exaggerated
+          here so the classification methods are easy to see working. When
+          your own data looks less clean than this, that is normal, not
+          failure.</p>
+      </div>
+
+      <p>Also note what the book says about Figure 4.1 itself: because
+        defaulters are so rare, the book plots <em>only a fraction</em> of
+        the non-defaulters in its scatterplot so the orange dots stay
+        visible. The demo above draws all 9,667 of them, which is why the
+        blue mass looks so much denser than the book's picture.</p>
+    </section>
+
+    <section id="roadmap">
+      <h2>3. The road ahead</h2>
+
+      <p>Section 4.1 is only a signpost; the methods arrive next. The
+        chapter's order, and where each piece lives on this site:</p>
+
+      <ul>
+        <li><strong>4.2</strong> — why you cannot dodge the topic by running
+          Chapter 3's linear regression on 0/1 labels.</li>
+        <li><strong>4.3</strong> — logistic regression: model the
+          <em>probability</em> of a class directly, with a curve that can
+          never leave [0, 1].</li>
+        <li><strong>4.4</strong> — the generative family: LDA, QDA and
+          naive Bayes, which model the predictors inside each class and flip
+          the question around with Bayes' theorem.</li>
+        <li><strong>4.5</strong> — putting them in a ring together: no method
+          wins everywhere, so how do you choose?</li>
+        <li><strong>4.6</strong> — the chapter's loose thread: responses that
+          are neither categories nor plain numbers (counts), and the
+          generalized linear models that handle them.</li>
+      </ul>
+
+      <div class="callout ok">
+        <p class="callout-title">Chapter 4, section 4.1 in one line</p>
+        <p>Classification predicts a label instead of a number; classifiers
+          are usually built by estimating class probabilities first and
+          thresholding them second; they are trained and tested exactly like
+          regression models; and the Default data set — 10,000 people, 3.3%
+          defaulters, balance strongly tied to default — is the running
+          example. Section 4.2 starts with the tempting shortcut that does
+          not work.</p>
+      </div>
+    </section>
+
+    <footer style="margin-top:64px;font-size:13.5px;color:var(--muted);">
+      <p class="further">Source: ISLP, Section 4.1 (p. 135). The scatterplot
+        is the full Default data set (10,000 rows, 333 defaulters), loaded
+        live in your browser — the rule you drag is evaluated against every
+        row, not a recording.</p>
+      <p>ISLP Plainly — <span data-year>2026</span></p>
+    </footer>
+  </main>
+
+  <!-- ======================= page TOC ======================= -->
+  <details class="page-toc" id="page-toc" open>
+    <summary>On this page</summary>
+    <p class="toc-title">On this page</p>
+    <nav aria-label="Table of contents">
+      <ol></ol>
+    </nav>
+  </details>
+</div>
+
+<div class="scrim" id="scrim"></div>
+
+</body>
+</html>
