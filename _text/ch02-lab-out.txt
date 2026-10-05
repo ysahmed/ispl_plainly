@@ -1,0 +1,349 @@
+=== versions ===
+Python 3.10.21
+numpy 2.2.6 | pandas 2.3.3 | matplotlib 3.10.9
+ISLP 0.4.1
+
+=== basic-print ===
+fit a model with  11 variables 
+
+=== basic-plus ===
+8
+
+=== basic-str ===
+'hello world'
+
+=== basic-list ===
+[3, 4, 5]
+
+=== basic-concat ===
+[3, 4, 5, 4, 9, 7]
+
+=== np-import-array ===
+array([ 7, 13, 12])
+
+=== np-2d ===
+array([[1, 2],
+       [3, 4]])
+
+=== np-attrs ===
+2
+
+=== np-dtype ===
+dtype('int64')
+
+=== np-dtype-float ===
+dtype('float64')
+
+=== np-shape ===
+(2, 2)
+
+=== np-sum ===
+np.int64(10)
+
+=== np-reshape ===
+beginning x:
+ [1 2 3 4 5 6]
+reshaped x:
+ [[1 2 3]
+ [4 5 6]]
+
+=== np-index ===
+(np.int64(1), np.int64(6))
+
+=== np-view ===
+x before we modify x_reshape:
+ [1 2 3 4 5 6]
+x_reshape before we modify x_reshape:
+ [[1 2 3]
+ [4 5 6]]
+x_reshape after we modify its top left element:
+ [[5 2 3]
+ [4 5 6]]
+x after we modify top left element of x_reshape:
+ [5 2 3 4 5 6]
+
+=== np-attrs2 ===
+((2, 3), 2, array([[5, 4],
+       [2, 5],
+       [3, 6]]))
+
+=== np-sqrt-square ===
+array([2.23606798, 1.41421356, 1.73205081, 2.        , 2.23606798,
+       2.44948974])
+
+=== np-square ===
+array([25,  4,  9, 16, 25, 36])
+
+=== np-sqrt-alt ===
+array([2.23606798, 1.41421356, 1.73205081, 2.        , 2.23606798,
+       2.44948974])
+
+=== np-random ===
+array([ 0.71951724, -0.03589681, -0.228518  , -0.51573999, -0.26927958,
+       -0.89779709, -0.05214311, -2.25731136, -2.00806222,  0.23245504,
+        1.0717861 ,  1.66262718, -1.05605247, -1.32849186,  1.10347019,
+        0.25205195,  1.21607883, -0.94328627,  0.21744256,  1.9881339 ,
+        0.04228714,  0.83545802, -2.36548233,  0.44595875,  0.00505587,
+       -0.42565626, -1.91843126,  0.42999157, -0.65893129, -0.64492548,
+        0.07144103,  0.07271139, -2.61775234,  0.22643735,  1.10825263,
+        0.27618374, -0.55169983,  1.56663795, -1.12653888,  0.61234598,
+       -0.77515044, -0.23647272,  1.84217633, -0.16204047,  2.0394023 ,
+        0.428952  ,  0.01056085,  0.10453296, -0.18128092,  1.46198625])
+
+=== np-corr ===
+array([[1.        , 0.70050373],
+       [0.70050373, 1.        ]])
+
+=== np-reproducible ===
+[ 4.09482632 -1.07485605]
+[ 4.09482632 -1.07485605]
+
+=== np-mean-var ===
+(np.float64(-0.1126795190952861), np.float64(-0.1126795190952861))
+
+=== np-var ===
+(np.float64(2.7243406406465125), np.float64(2.7243406406465125), np.float64(2.7243406406465125))
+
+=== np-std ===
+(np.float64(1.6505576756498128), np.float64(1.6505576756498128))
+
+=== np-matrix ===
+array([[ 0.22578661, -0.35263079, -0.28128742],
+       [-0.66804635, -1.05515055, -0.39080098],
+       [ 0.48194539, -0.23855361,  0.9577587 ],
+       [-0.19980213,  0.02425957,  1.54582085],
+       [ 0.54510552, -0.50522874, -0.18283897],
+       [ 0.54052513,  1.93508803, -0.26962033],
+       [-0.24355868,  1.0023136 , -0.88645994],
+       [-0.29172023,  0.88253897,  0.58035002],
+       [ 0.0915167 ,  0.67010435, -2.82816231],
+       [ 1.02130682, -0.95964476, -1.66861984]])
+
+=== np-axis ===
+array([ 0.15030588,  0.14030961, -0.34238602])
+
+=== plot-line ===
+
+=== plot-scatter-labels ===
+
+--- figure: assets/img/ch02/lab-scatter.png
+
+=== plot-grid ===
+<Figure size 1500x500 with 6 Axes>
+
+--- figure: assets/img/ch02/lab-grid.png
+
+=== plot-contour ===
+
+--- figure: assets/img/ch02/lab-contour.png
+
+=== plot-imshow ===
+
+--- figure: assets/img/ch02/lab-heatmap.png
+
+=== seq-linspace ===
+array([ 0.,  1.,  2.,  3.,  4.,  5.,  6.,  7.,  8.,  9., 10.])
+
+=== seq-arange ===
+array([0, 1, 2, 3, 4, 5, 6, 7, 8, 9])
+
+=== seq-slice ===
+'lo '
+
+=== seq-slice-explicit ===
+'lo '
+
+=== idx-build ===
+array([[ 0,  1,  2,  3],
+       [ 4,  5,  6,  7],
+       [ 8,  9, 10, 11],
+       [12, 13, 14, 15]])
+
+=== idx-cell ===
+np.int64(6)
+
+=== idx-rows ===
+array([[ 4,  5,  6,  7],
+       [12, 13, 14, 15]])
+
+=== idx-cols ===
+array([[ 0,  2],
+       [ 4,  6],
+       [ 8, 10],
+       [12, 14]])
+
+=== idx-pairs ===
+array([ 4, 14])
+
+=== idx-submatrix ===
+array([[ 4,  6],
+       [12, 14]])
+
+=== idx-ix ===
+array([[ 4,  6,  7],
+       [12, 14, 15]])
+
+=== idx-slices ===
+array([[ 4,  6],
+       [12, 14]])
+
+=== idx-bool ===
+array([False,  True, False,  True])
+
+=== idx-bool-select ===
+array([[ 4,  5,  6,  7],
+       [12, 13, 14, 15]])
+
+=== load-csv ===
+(392, 9)
+
+=== load-head ===
+    mpg  cylinders  displacement  ...  year  origin                       name
+0  18.0          8         307.0  ...    70       1  chevrolet chevelle malibu
+1  15.0          8         350.0  ...    70       1          buick skylark 320
+2  18.0          8         318.0  ...    70       1         plymouth satellite
+
+[3 rows x 9 columns]
+
+=== load-data-space ===
+(397, 9)
+
+=== load-unique ===
+array(['94.00', '95.00', '96.00', '97.00', '98.00', '?'], dtype=object)
+
+=== load-na ===
+np.float64(40952.0)
+
+=== load-shape ===
+(397, 9)
+
+=== load-dropna ===
+(392, 9)
+
+=== load-columns ===
+Index(['mpg', 'cylinders', 'displacement', 'horsepower', 'weight',
+       'acceleration', 'year', 'origin', 'name'],
+      dtype='object')
+
+=== load-first3 ===
+    mpg  cylinders  displacement  ...  year  origin                       name
+0  18.0          8         307.0  ...    70       1  chevrolet chevelle malibu
+1  15.0          8         350.0  ...    70       1          buick skylark 320
+2  18.0          8         318.0  ...    70       1         plymouth satellite
+
+[3 rows x 9 columns]
+
+=== load-bool-rows ===
+      mpg  cylinders  displacement  ...  year  origin                    name
+338  27.2          4         135.0  ...    81       1        plymouth reliant
+339  26.6          4         151.0  ...    81       1           buick skylark
+340  25.8          4         156.0  ...    81       1  dodge aries wagon (sw)
+
+[3 rows x 9 columns]
+
+=== load-two-cols ===
+    mpg  horsepower
+0  18.0       130.0
+1  15.0       165.0
+2  18.0       150.0
+
+=== load-index ===
+Index(['mpg', 'cylinders', 'displacement', 'horsepower', 'weight',
+       'acceleration', 'year', 'origin'],
+      dtype='object')
+
+=== load-loc ===
+                mpg  cylinders  displacement  ...  acceleration  year  origin
+name                                          ...                            
+amc rebel sst  16.0          8         304.0  ...          12.0    70       1
+ford torino    17.0          8         302.0  ...          10.5    70       1
+
+[2 rows x 8 columns]
+
+=== load-iloc ===
+                mpg  displacement  horsepower
+name                                         
+amc rebel sst  16.0         304.0       150.0
+ford torino    17.0         302.0       140.0
+
+=== load-lambda ===
+                  weight  origin
+name                            
+toyota starlet    1755.0       3
+plymouth champ    1875.0       1
+honda civic 1300  1760.0       3
+subaru            2065.0       3
+
+=== load-str-contains ===
+                 weight  origin
+name                           
+ford maverick    2587.0       1
+datsun pl510     2130.0       3
+datsun pl510     2130.0       3
+ford torino 500  3302.0       1
+
+=== loop-basic ===
+Total is: 24
+
+=== loop-nested ===
+Total is: 144
+
+=== loop-zip ===
+Weighted average is: 10.8
+
+=== loop-missing-build ===
+       food       bar    pickle     snack   popcorn
+0  0.345584  0.821618  0.330437 -1.303157       NaN
+1       NaN -0.536953  0.581118  0.364572  0.294132
+2       NaN  0.546713       NaN -0.162910 -0.482119
+
+=== loop-missing-report ===
+Column "food" has 16.54% missing values 
+Column "bar" has 25.98% missing values 
+Column "pickle" has 29.13% missing values 
+Column "snack" has 21.26% missing values 
+Column "popcorn" has 22.83% missing values 
+
+=== auto-nameerror ===
+!! NameError: name 'horsepower' is not defined
+
+=== auto-scatter ===
+
+--- figure: assets/img/ch02/auto-scatter.png
+
+=== auto-dtype ===
+dtype('int64')
+
+=== auto-category ===
+CategoricalDtype(categories=[3, 4, 5, 6, 8], ordered=False, categories_dtype=int64)
+
+=== auto-boxplot ===
+
+--- figure: assets/img/ch02/auto-boxplot.png
+
+=== auto-hist ===
+
+--- figure: assets/img/ch02/auto-hist.png
+
+=== auto-matrix ===
+
+--- figure: assets/img/ch02/auto-matrix.png
+
+=== auto-describe ===
+              mpg       weight
+count  392.000000   392.000000
+mean    23.445918  2977.584184
+std      7.805007   849.402560
+min      9.000000  1613.000000
+25%     17.000000  2225.250000
+50%     22.750000  2803.500000
+75%     29.000000  3614.750000
+max     46.600000  5140.000000
+
+=== auto-describe-one ===
+count     392
+unique      5
+top         4
+freq      199
+Name: cylinders, dtype: int64
+

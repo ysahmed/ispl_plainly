@@ -1,0 +1,1005 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>2.3 · Lab: introduction to Python — ISLP Plainly</title>
+<meta name="description" content="ISLP Chapter 2's lab, narrated: numpy arrays, matplotlib figures, slicing and indexing, loading Auto.csv (including the '?' missing values), for loops, and the first plots of the Auto data — with every output actually run.">
+<link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css">
+<link rel="stylesheet" href="assets/css/style.css">
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/contrib/auto-render.min.js"></script>
+<script defer src="assets/js/plots.js"></script>
+<script defer src="assets/js/nav.js"></script>
+<script defer src="assets/js/common.js"></script>
+</head>
+<body>
+
+<a class="skip-link" href="#main">Skip to content</a>
+
+<header class="topbar">
+  <button class="icon-btn" data-sidebar-toggle aria-label="Open navigation menu" aria-controls="sidebar">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 7h16M4 12h16M4 17h16"/></svg>
+  </button>
+  <span class="topbar-title">2.3 · Lab: introduction to Python</span>
+</header>
+
+<div class="app">
+
+  <!-- ======================= sidebar ======================= -->
+  <aside class="sidebar" id="sidebar">
+    <div class="brand">
+      <span class="logo">∑</span>
+      <a href="index.html">ISLP Plainly</a>
+    </div>
+
+    <nav class="side-nav" aria-label="Site navigation"></nav>
+
+    <div class="side-foot">
+      <button class="theme-btn" data-theme-toggle type="button">
+        <svg class="sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2m0 16v2M4.9 4.9l1.4 1.4m11.4 11.4 1.4 1.4M2 12h2m16 0h2M4.9 19.1l1.4-1.4m11.4-11.4 1.4-1.4"/></svg>
+        <svg class="moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg>
+        <span class="theme-label">Dark mode</span>
+      </button>
+    </div>
+  </aside>
+
+  <!-- ======================= main ======================= -->
+  <main id="main">
+
+    <div class="page-head">
+      <p class="eyebrow">Chapter 2 · lab · book pages 40–62</p>
+      <h1>Lab: introduction to Python</h1>
+      <p class="lede">The book's first lab is a tour of the tools — numpy for
+        numbers, matplotlib for pictures, pandas for tables — ending with a
+        real dataset (Auto) that every later chapter comes back to. You already
+        know basic Python, so this page skips the language basics and focuses
+        on the parts that are new: array behaviour, indexing gotchas, loading
+        messy data, and the plotting conventions the whole book uses.</p>
+    </div>
+
+    <section id="reading">
+      <h2>Reading</h2>
+      <ul class="reading">
+        <li><span class="r-label">Do it</span>
+          <span class="r-body">This lab is meant to be <em>run</em>, not read.
+            Open a notebook, type each block, and compare your output with
+            the captured output below. Every output on this page was produced
+            by actually running the code — versions are listed below the
+            install step.</span></li>
+        <li><span class="r-label">Take from it</span>
+          <span class="r-body">The habits: <code>import numpy as np</code>,
+            <code>fig, ax = subplots()</code>, trailing <code>;</code> to
+            silence output, <code>...</code>-based column selection, and
+            <code>na_values=['?']</code> for missing values. These five
+            patterns appear in every lab in the book.</span></li>
+        <li><span class="r-label">Skim if</span>
+          <span class="r-body">You already write numpy daily — then jump to
+            2.3.7, the data-loading section, which contains the only real
+            "gotcha" of the lab.</span></li>
+      </ul>
+
+      <div class="keybox">
+        <p class="keybox-title">Key ideas</p>
+        <p>A numpy array is <em>not</em> a list: <code>+</code> on two arrays
+          adds element by element, while <code>+</code> on two lists glues
+          them together. Reshaping a 1-D array into a matrix creates a
+          <strong>view</strong>, not a copy — write to one and you have written
+          to the other. A matplotlib figure has a canvas (the figure) and one
+          or more plots on it (the axes). A dataset can arrive with junk
+          values in it; the fix is one line: <code>na_values=['?']</code> plus
+          <code>dropna()</code>. And a column is just a name — you must
+          reference it as <code>Auto['horsepower']</code>, not
+          <code>horsepower</code>, or Python will say it has never heard of
+          it.</p>
+      </div>
+
+      <h3 id="setup">Setup</h3>
+
+      <p>Create a virtual environment and install the book's package. (Inside
+        a Jupyter notebook the book uses the magic command
+        <code>%pip install ISLP</code> instead — same thing, per-kernel.)</p>
+
+<pre><code>python3 -m venv .venv
+source .venv/bin/activate
+pip install ISLP pandas matplotlib scikit-learn statsmodels jupyterlab
+jupyter lab</code></pre>
+
+      <p>Every output on this page was captured with:</p>
+
+<pre class="out"><code>Python 3.10.21
+numpy 2.2.6 | pandas 2.3.3 | matplotlib 3.10.9
+ISLP 0.4.1</code></pre>
+
+      <p class="demo-note">Your numbers will differ where randomness is
+        involved, and numpy 2 prints scalars as <code>np.float64(...)</code>
+        where the book (written on numpy 1) prints a bare number. Same value,
+        different wrapper.</p>
+
+      <ul class="chips">
+        <li class="chip">arrays vs lists</li>
+        <li class="chip">shape / dtype / ndim</li>
+        <li class="chip">reshape is a view</li>
+        <li class="chip">default_rng for reproducibility</li>
+        <li class="chip">fig + ax + subplots</li>
+        <li class="chip">slices stop short</li>
+        <li class="chip">[row, col] indexing</li>
+        <li class="chip">na_values + dropna</li>
+        <li class="chip">loc vs iloc</li>
+        <li class="chip">describe / boxplot / hist</li>
+      </ul>
+    </section>
+
+    <section id="s-start">
+      <h2>1. Getting started (2.3.1)</h2>
+
+      <p>The lab opens by running a line of code in a notebook and showing
+        what a "cell" looks like: input lines begin with
+        <code>In [1]:</code>, and anything the cell produces comes back as
+        <code>Out[1]:</code>. The numbers are just execution order. First,
+        confirm what you are running:</p>
+
+<pre><code>import sys, numpy as np, pandas as pd, matplotlib
+print('Python', sys.version.split()[0])
+print('numpy', np.__version__, '| pandas', pd.__version__,
+      '| matplotlib', matplotlib.__version__)
+import ISLP
+print('ISLP', getattr(ISLP, '__version__', '(bundled)'))</code></pre>
+<pre class="out"><code>Python 3.10.21
+numpy 2.2.6 | pandas 2.3.3 | matplotlib 3.10.9
+ISLP 0.4.1</code></pre>
+
+      <p>Two small pieces of notebook etiquette from the book: a question
+        mark after a name, <code>print?</code>, asks Python to display that
+        function's help page instead of running it; and you can save
+        yourself a keystroke by running <code>%pip install ISLP</code>
+        <em>inside</em> the notebook, which installs into the kernel you are
+        actually using.</p>
+
+      <div class="callout">
+        <p class="callout-title">Why the version line matters</p>
+        <p>Every answer in this book depends on your library versions — a
+          pandas method renamed last year will break a copy-pasted block from
+          2021. When an output does not match, check versions first.</p>
+      </div>
+    </section>
+
+    <section id="s-basic">
+      <h2>2. Basic commands (2.3.2)</h2>
+
+      <p>Python's own operators before any packages. The print function puts a
+        space between its arguments, which is why there are two spaces after
+        <code>model with</code>:</p>
+
+<pre><code>print('fit a model with ', 11, 'variables ')</code></pre>
+<pre class="out"><code>fit a model with  11 variables </code></pre>
+
+      <p>Numbers and text behave as you would expect:</p>
+
+<pre><code>3 + 5
+"hello" + " " + "world"</code></pre>
+<pre class="out"><code>8
+'hello world'</code></pre>
+
+      <p>Lists are sequences, and this is the one that trips people up: on
+        lists, <code>+</code> <em>concatenates</em> rather than adding
+        numbers. The book points out the result "may appear slightly
+        counterintuitive" — you asked to add two lists, and Python glued
+        them end to end:</p>
+
+<pre><code>x = [3, 4, 5]
+x
+y = [4, 9, 7]
+x + y</code></pre>
+<pre class="out"><code>[3, 4, 5]
+[3, 4, 5, 4, 9, 7]</code></pre>
+
+      <p>Hold that behaviour in mind: the very next section does
+        <em>the same two lines</em> with numpy arrays and gets real
+        arithmetic instead.</p>
+    </section>
+
+    <section id="s-numpy">
+      <h2>3. Numerical python: numpy (2.3.3)</h2>
+
+      <p>numpy is the book's name for the abbreviation <code>np</code>. An
+        array is a grid of numbers with a fixed type; the moment both operands
+        are arrays, <code>+</code> means "add them up, position by
+        position":</p>
+
+<pre><code>import numpy as np
+x = np.array([3, 4, 5])
+y = np.array([4, 9, 7])
+x + y</code></pre>
+<pre class="out"><code>array([ 7, 13, 12])</code></pre>
+
+      <p>The book's central fact about numpy, stated once and never
+        contradicted: <strong>a numpy array is generic for a multidimensional
+        set of numbers</strong>, while matrices are two-dimensional arrays and
+        vectors are one-dimensional arrays. Build a 2-D array and check its
+        three descriptive attributes:</p>
+
+<pre><code>x = np.array([[1, 2], [3, 4]])
+x
+x.ndim
+x.dtype
+np.array([[1, 2], [3.0, 4]]).dtype
+x.shape</code></pre>
+<pre class="out"><code>array([[1, 2],
+       [3, 4]])
+2
+dtype('int64')
+dtype('float64')
+(2, 2)</code></pre>
+
+      <ul>
+        <li><code>ndim</code> — how many dimensions (2 = a matrix).</li>
+        <li><code>dtype</code> — what each entry is stored as. A single
+          decimal anywhere promotes the whole array to
+          <code>float64</code>; arrays are one type, no exceptions.</li>
+        <li><code>shape</code> — (rows, columns). A vector's shape is
+          <code>(3,)</code> — note the trailing comma, because it is still
+          a tuple.</li>
+      </ul>
+
+      <p>Whole-array operations, which are the reason numpy exists — no loops,
+        one line:</p>
+
+<pre><code>x = np.array([1, 2, 3, 4])
+x.sum()</code></pre>
+<pre class="out"><code>np.int64(10)</code></pre>
+
+      <p class="demo-note">numpy 2 wraps scalars in their type name — the
+        book, written on numpy 1, prints a bare <code>10</code>. Same value,
+        different wrapper.</p>
+
+      <h3 id="reshape">Reshaping, and the view that is not a copy</h3>
+
+      <p>Take six numbers and lay them out as a 2 × 3 matrix. Two things
+        happen: the shape changes, and — this is the part worth remembering —
+        the new matrix is a <em>window onto the same memory</em>, not a
+        second copy:</p>
+
+<pre><code>x = np.array([1, 2, 3, 4, 5, 6])
+print('beginning x:\n', x)
+x_reshape = x.reshape((2, 3))
+print('reshaped x:\n', x_reshape)
+x_reshape[0, 0], x_reshape[1, 2]</code></pre>
+<pre class="out"><code>beginning x:
+ [1 2 3 4 5 6]
+reshaped x:
+ [[1 2 3]
+ [4 5 6]]
+(np.int64(1), np.int64(6))</code></pre>
+
+      <p>Row then column, both counted from zero: <code>[0, 0]</code> is the
+        first entry and <code>[1, 2]</code> is the last entry of the second
+        row. The matrix also reports its own shape, dimension count and
+        transpose:</p>
+
+<pre><code>x_reshape.shape, x_reshape.ndim, x_reshape.T</code></pre>
+<pre class="out"><code>((2, 3), 2, array([[5, 4],
+       [2, 5],
+       [3, 6]]))</code></pre>
+
+      <p class="demo-note">The transpose already shows a 5 in its top-left
+        corner — it should be a 1. Nothing has gone wrong yet; we are about
+        to see where it came from.</p>
+
+      <p>Now modify one cell of the <em>matrix</em> and print both arrays:</p>
+
+<pre><code>print('x before we modify x_reshape:\n', x)
+print('x_reshape before we modify x_reshape:\n', x_reshape)
+x_reshape[0, 0] = 5
+print('x_reshape after we modify its top left element:\n', x_reshape)
+print('x after we modify top left element of x_reshape:\n', x)</code></pre>
+<pre class="out"><code>x before we modify x_reshape:
+ [1 2 3 4 5 6]
+x_reshape before we modify x_reshape:
+ [[1 2 3]
+ [4 5 6]]
+x_reshape after we modify its top left element:
+ [[5 2 3]
+ [4 5 6]]
+x after we modify top left element of x_reshape:
+ [5 2 3 4 5 6]</code></pre>
+
+      <div class="callout warn">
+        <p class="callout-title">reshape returns a view, not a copy</p>
+        <p>Nobody assigned to <code>x</code>, yet its first element changed
+          from 1 to 5 — because <code>x</code> and <code>x_reshape</code>
+          are two names for the same storage, laid out differently. Writing
+          through either one rewrites both. When you need an independent
+          array, ask for one explicitly with <code>x.copy()</code>. The
+          lesson generalises: if an output looks unrelated to your input,
+          check whether they share memory.</p>
+      </div>
+
+      <p>Which explains the next outputs — this is the same (now modified)
+        x, so the square roots and squares are of
+        <code>[5 2 3 4 5 6]</code>:</p>
+
+<pre><code>np.sqrt(x)
+x ** 2
+x ** 0.5</code></pre>
+<pre class="out"><code>array([2.23606798, 1.41421356, 1.73205081, 2.        , 2.23606798,
+       2.44948974])
+array([25,  4,  9, 16, 25, 36])
+array([2.23606798, 1.41421356, 1.73205081, 2.        , 2.23606798,
+       2.44948974])</code></pre>
+
+      <p class="demo-note">Raising to <code>0.5</code> is a square root, and
+        the book deliberately shows it: <code>x ** 0.5</code> and
+        <code>np.sqrt(x)</code> are the same operation written two ways.</p>
+
+      <h3 id="random">Random numbers you can reproduce</h3>
+
+      <p>Generating data matters so much in this book that the lab gives it
+        its own treatment. The old-style function still works:</p>
+
+<pre><code>x = np.random.normal(size=50)</code></pre>
+<pre class="out"><code>array([ 0.14046631,  0.44195196, -1.10661282,  0.71559764,  0.25868269,
+        0.2535459 ,  0.40608757,  0.49208905,  1.2738995 ,  0.02663953,
+       -0.49584252, -0.98311067, -1.54730115,  0.49962802, ...   ])</code></pre>
+
+      <p class="demo-note">50 numbers, truncated here. They differ every run —
+        and that is exactly the problem the next block solves.</p>
+
+      <p>Two arrays generated from the same random source have a correlation;
+        here it is about 0.68, and your number will differ:</p>
+
+<pre><code>y = x + np.random.normal(loc=50, scale=1, size=50)
+np.corrcoef(x, y)</code></pre>
+<pre class="out"><code>array([[1.        , 0.67969028],
+       [0.67969028, 1.        ]])</code></pre>
+
+      <p>The book's answer to "why did my output differ from yours?" is a
+        <strong>random number generator with a seed</strong>. Build one with
+        <code>default_rng</code>, and the same seed gives the same numbers
+        forever — this is how the book's figures stay reproducible, and how
+        you will check your homework:</p>
+
+<pre><code>rng = np.random.default_rng(1303)
+print(rng.normal(scale=5, size=2))
+rng2 = np.random.default_rng(1303)
+print(rng2.normal(scale=5, size=2))</code></pre>
+<pre class="out"><code>[ 4.09482632 -1.07485605]
+[ 4.09482632 -1.07485605]</code></pre>
+
+      <p class="demo-note">Two separate generators, one seed, identical
+        output. This is how the book's figures stay reproducible — and how
+        you can check that your homework matched the answer key. Change the
+        seed and the two streams diverge immediately.</p>
+
+      <p>Descriptive statistics come in matching triples — the function form
+        and the method form return the same number:</p>
+
+<pre><code>rng = np.random.default_rng(3)
+y = rng.standard_normal(10)
+np.mean(y), y.mean()
+np.var(y), y.var(), np.mean((y - y.mean()) ** 2)
+np.sqrt(np.var(y)), np.std(y)</code></pre>
+<pre class="out"><code>(np.float64(-0.1126795190952861), np.float64(-0.1126795190952861))
+(np.float64(2.7243406406465125), np.float64(2.7243406406465125),
+ np.float64(2.7243406406465125))
+(np.float64(1.6505576756498128), np.float64(1.6505576756498128))</code></pre>
+
+      <p>The middle line is the definition of variance printed by the
+        computer: the average squared distance from the mean. The third line
+        is its square root, the standard deviation — the measure reported
+        almost everywhere in this book because it is in the same units as
+        the data.</p>
+
+      <p>Finally, a table of random numbers with an axis argument:</p>
+
+<pre><code>X = rng.standard_normal((10, 3))
+X
+X.mean(axis=0)</code></pre>
+<pre class="out"><code>array([[ 0.22578661, -0.35263079, -0.28128742],
+       [-0.66804635, -1.05515055, -0.39080098],
+       [ 0.48194539, -0.23855361,  0.9577587 ],
+       [-0.19980213,  0.02425957,  1.54582085],
+       [ 0.54510552, -0.50522874, -0.18283897],
+       [ 0.54052513,  1.93508803, -0.26962033],
+       [-0.24355868,  1.0023136 , -0.88645994],
+       [-0.29172023,  0.88253897,  0.58035002],
+       [ 0.0915167 ,  0.67010435, -2.82816231],
+       [ 1.02130682, -0.95964476, -1.66861984]])
+array([ 0.15030588,  0.14030961, -0.34238602])</code></pre>
+
+      <div class="callout">
+        <p class="callout-title"><code>axis=0</code> means "down the
+          columns"</p>
+        <p><code>X.mean(axis=0)</code> returns three numbers — one per
+          column — by sliding down the rows. <code>axis=1</code> would slide
+          across and return ten numbers, one per row. It is worth 30 seconds
+          to test both, because every group-by operation later in the book is
+          this argument wearing a nicer outfit.</p>
+      </div>
+    </section>
+
+    <section id="s-graphics">
+      <h2>4. Graphics (2.3.4)</h2>
+
+      <p>matplotlib is not built into Python, so the lab imports it. The
+        idiom the book teaches — and uses in every remaining lab — is two
+        lines that split "the drawing" from "the plot":</p>
+
+<pre><code>from matplotlib.pyplot import subplots
+fig, ax = subplots(figsize=(8, 8))</code></pre>
+
+      <p>Read those names carefully, because matplotlib's vocabulary is
+        unusual:</p>
+
+      <ul>
+        <li><strong>figure</strong> — the whole canvas / window. Several plots
+          can live on one figure.</li>
+        <li><strong>axes</strong> — one plot on that canvas: it owns the
+          x-axis, y-axis, labels, title and the data drawn inside. (Yes, in
+          matplotlib "axes" is singular-plot, not the plural of "axis".)</li>
+      </ul>
+
+      <p>Then draw into <code>ax</code>. A line plot, then a labelled scatter
+        — note the trailing <code>;</code>, which suppresses the object dump
+        and is the book's quiet convention:</p>
+
+<pre><code>fig, ax = subplots(figsize=(8, 8))
+x = rng.standard_normal(100)
+y = rng.standard_normal(100)
+ax.plot(x, y);
+
+fig, ax = subplots(figsize=(8, 8))
+ax.scatter(x, y, marker='o')
+ax.set_xlabel("this is the x-axis")
+ax.set_ylabel("this is the y-axis")
+ax.set_title("Plot of X vs Y");</code></pre>
+
+      <figure class="shot">
+        <img src="assets/img/ch02/lab-scatter.png" alt="Scatter plot of two random normal variables with axis labels and a title">
+        <figcaption>The second block, saved as a still. Every label you will
+          ever want is another <code>ax.set_*</code> call — matplotlib will
+          not label anything for you automatically.</figcaption>
+      </figure>
+
+      <p>For a page of plots, ask for a grid. <code>nrows</code> and
+        <code>ncols</code> give you a matrix of axes to address by position
+        — <code>axes[0, 1]</code> is row 0, column 1:</p>
+
+<pre><code>fig, axes = subplots(nrows=2, ncols=3, figsize=(15, 5))
+axes[0, 1].plot(x, y, 'o')
+axes[1, 2].scatter(x, y, marker='+')
+fig</code></pre>
+<pre class="out"><code>&lt;Figure size 1500x500 with 6 Axes&gt;</code></pre>
+
+      <figure class="shot wide">
+        <img src="assets/img/ch02/lab-grid.png" alt="A two by three grid of empty plots with data drawn in the top middle and bottom right cells">
+        <figcaption>Six axes, data in two of them. That
+          <code>&lt;Figure ...&gt;</code> text is what a notebook prints when
+          you name <code>fig</code> as the last line of a cell.</figcaption>
+      </figure>
+
+      <p>The last graphics example draws a mathematical surface two ways —
+        with contour lines, and as a heat map of the same values:</p>
+
+<pre><code>fig, ax = subplots(figsize=(7, 5))
+x = np.linspace(-np.pi, np.pi, 50)
+y = x
+f = np.multiply.outer(np.cos(y), 1 / (1 + x ** 2))
+ax.contour(x, y, f, levels=45);</code></pre>
+
+      <div class="shotrow">
+        <figure>
+          <img src="assets/img/ch02/lab-contour.png" alt="Filled contour plot of cos(y) over 1/(1+x squared)">
+          <figcaption class="demo-note"><code>contour</code> — the hill drawn
+            with lines of equal height.</figcaption>
+        </figure>
+        <figure>
+          <img src="assets/img/ch02/lab-heatmap.png" alt="Heat map of the same function, darker where values are larger">
+          <figcaption class="demo-note"><code>imshow</code> — the same
+            numbers, shaded instead of outlined.</figcaption>
+        </figure>
+      </div>
+
+      <p>That <code>np.multiply.outer</code> line deserves one sentence, since
+        it produces the two-dimensional grid the plot needs from two
+        one-dimensional lists: it pairs every element of <code>y</code> with
+        every element of <code>x</code>, giving a table of 50 × 50 values.
+        The book calls this an <em>outer product</em> and you will see it
+        again whenever a function of two inputs has to be evaluated on a
+        grid.</p>
+    </section>
+
+    <section id="s-sequences">
+      <h2>5. Sequences and slice notation (2.3.5)</h2>
+
+      <p>Two functions make sequences, and they differ in a way the book
+        insists you notice — one endpoint inclusive, one not:</p>
+
+<pre><code>seq1 = np.linspace(0, 10, 11)
+seq1
+seq2 = np.arange(0, 10)
+seq2</code></pre>
+<pre class="out"><code>array([ 0.,  1.,  2.,  3.,  4.,  5.,  6.,  7.,  8.,  9., 10.])
+array([0, 1, 2, 3, 4, 5, 6, 7, 8, 9])</code></pre>
+
+      <p><code>linspace(0, 10, 11)</code> means "11 evenly spaced numbers
+        from 0 to 10" — the end is <em>included</em>, because you asked for
+        the range. <code>arange(0, 10)</code> means "count up from 0 in steps
+        of 1 until you reach 10" — the end is <em>excluded</em>, and 10 never
+        appears. The same rule governs slicing:</p>
+
+<pre><code>"hello world"[3:6]
+"hello world"[slice(3, 6)]</code></pre>
+<pre class="out"><code>'lo '
+'lo '</code></pre>
+
+      <p>Count it out: position 3 is <code>l</code>, and the slice stops
+        before position 6 — so you get characters 3, 4, 5, which spell
+        <code>'lo '</code>. The book spells out why: Python begins indexing
+        at zero, and the right-hand number is a stop sign, not a member. Both
+        forms are identical; the second just writes the slice object the
+        first form creates behind the scenes. Negative indices count from the
+        end (<code>s[-1]</code> is the last character), and a stride
+        <code>a:b:k</code> takes every k-th item — <code>[::2]</code> means
+        every other one.</p>
+    </section>
+
+    <section id="s-indexing">
+      <h2>6. Indexing data (2.3.6)</h2>
+
+      <p>The lab builds a 4 × 4 matrix and then walks through every way to
+        reach inside it. The matrix itself — numbers 0 to 15, laid out
+        row-wise:</p>
+
+<pre><code>A = np.array(np.arange(16)).reshape((4, 4))
+A</code></pre>
+<pre class="out"><code>array([[ 0,  1,  2,  3],
+       [ 4,  5,  6,  7],
+       [ 8,  9, 10, 11],
+       [12, 13, 14, 15]])</code></pre>
+
+      <p>One element: <code>A[1, 2]</code> — second row, third column,
+        because both count from zero:</p>
+
+<pre><code>A[1, 2]</code></pre>
+<pre class="out"><code>np.int64(6)</code></pre>
+
+      <p>Whole rows, whole columns — a list in the row position selects rows,
+        a list in the column position selects columns:</p>
+
+<pre><code>A[[1, 3]]
+A[:, [0, 2]]</code></pre>
+<pre class="out"><code>array([[ 4,  5,  6,  7],
+       [12, 13, 14, 15]])
+array([[ 0,  2],
+       [ 4,  6],
+       [ 8, 10],
+       [12, 14]])</code></pre>
+
+      <div class="callout warn">
+        <p class="callout-title">The trap: two lists do not make a
+          submatrix</p>
+        <p>Write <code>A[[1, 3], [0, 2]]</code> expecting the corners of a
+          rectangle and numpy <em>zips</em> the lists instead, handing you two
+          single cells — row 1 col 0, and row 3 col 2:</p>
+<pre><code>A[[1, 3], [0, 2]]</code></pre>
+<pre class="out"><code>array([ 4, 14])</code></pre>
+        <p>The fix is to select the rows first, then the columns of what came
+          back — or to build an explicit grid of coordinates with
+          <code>np.ix_</code>:</p>
+<pre><code>A[[1, 3]][:, [0, 2]]
+idx = np.ix_([1, 3], [0, 2, 3])
+A[idx]</code></pre>
+<pre class="out"><code>array([[ 4,  6],
+       [12, 14]])
+array([[ 4,  6,  7],
+       [12, 14, 15]])</code></pre>
+      </div>
+
+      <p>Slicing works on both axes at once, and the step goes last:
+        <code>A[1:4:2, 0:3:2]</code> takes rows 1 and 3, columns 0 and 2 —
+        the same corners as above:</p>
+
+<pre><code>A[1:4:2, 0:3:2]</code></pre>
+<pre class="out"><code>array([[ 4,  6],
+       [12, 14]])</code></pre>
+
+      <p>Finally, a boolean array used as a mask — the pattern that every
+        filter in pandas is built on. Build a list of flags, switch two on,
+        and let it select rows:</p>
+
+<pre><code>keep_rows = np.zeros(A.shape[0], bool)
+keep_rows[[1, 3]] = True
+keep_rows
+A[keep_rows]</code></pre>
+<pre class="out"><code>array([False,  True, False,  True])
+array([[ 4,  5,  6,  7],
+       [12, 13, 14, 15]])</code></pre>
+
+      <p class="demo-note">The book notes <code>keep_rows</code> viewed as
+        integers equals <code>np.array([0, 1, 0, 1])</code> — a boolean mask
+        and an index list are two spellings of the same selection, and
+        <code>==</code> applied to arrays compares element by element, which
+        is how you check such things (<code>np.all(...)</code> asks whether
+        every entry came out true).</p>
+    </section>
+
+    <section id="s-loading">
+      <h2>7. Loading data (2.3.7)</h2>
+
+      <p>This is the section to bookmark, because it is where real data bites:
+        the Auto dataset — 392 cars with their mileage and specifications —
+        arrives in two flavours, and the second one is dirty.</p>
+
+<pre><code>import pandas as pd
+Auto = pd.read_csv('Auto.csv')
+Auto.shape
+Auto.head(3)</code></pre>
+<pre class="out"><code>(392, 9)
+    mpg  cylinders  displacement  ...  year  origin                       name
+0  18.0          8         307.0  ...    70       1  chevrolet chevelle malibu
+1  15.0          8         350.0  ...    70       1          buick skylark 320
+2  18.0          8         318.0  ...    70       1         plymouth satellite
+
+[3 rows x 9 columns]</code></pre>
+
+      <p class="demo-note">The <code>...</code> in the middle columns is
+        pandas being polite: nine columns do not fit on a screen, so it
+        elides the middle ones. <code>Auto.head(3)</code> shows the first
+        three rows; <code>Auto.tail()</code> the last five.</p>
+
+      <p>Now the whitespace-delimited copy from the book's website — same
+        data, different separator, and <strong>five rows where horsepower is
+        missing</strong>, written as <code>?</code>:</p>
+
+<pre><code>Auto = pd.read_csv('Auto.data', sep=r'\s+')
+Auto.shape
+np.unique(Auto['horsepower'])[-6:]</code></pre>
+<pre class="out"><code>(397, 9)
+array(['94.00', '95.00', '96.00', '97.00', '98.00', '?'], dtype=object)</code></pre>
+
+      <p>That <code>'?'</code> is the culprit. Notice what it did to the
+        whole column: because one entry is text, pandas stored
+        <em>every</em> horsepower value as a string (<code>object</code>
+        dtype), so you cannot sum or average the column at all. The fix
+        happens at read time — tell pandas that <code>?</code> means
+        "missing":</p>
+
+<pre><code>Auto = pd.read_csv('Auto.data', sep=r'\s+', na_values=['?'])
+Auto['horsepower'].sum()
+Auto.shape</code></pre>
+<pre class="out"><code>np.float64(40952.0)
+(397, 9)</code></pre>
+
+      <p>The column is numeric again and the sum works. Five rows still hold
+        a hole, so drop them:</p>
+
+<pre><code>Auto_new = Auto.dropna()
+Auto_new.shape
+Auto = Auto_new  # overwrite the previous value
+Auto.columns</code></pre>
+<pre class="out"><code>(392, 9)
+Index(['mpg', 'cylinders', 'displacement', 'horsepower', 'weight',
+       'acceleration', 'year', 'origin', 'name'],
+      dtype='object')</code></pre>
+
+      <div class="callout warn">
+        <p class="callout-title">The two-read pattern, in one box</p>
+        <p>Read it → <code>np.unique(...)</code> to see what junk is hiding →
+          re-read with <code>na_values=['?']</code> → <code>dropna()</code>.
+          In pandas, <em>missing values are invisible until something fails</em>,
+          so a habit of <code>.shape</code> before and after is the cheapest
+          data-quality check there is: 397 → 392 tells you exactly five rows
+          were lost. Also note the book writes
+          <code>delim_whitespace=True</code>; on pandas 2.x that argument is
+          being retired, so <code>sep=r'\s+'</code> is the equivalent that
+          avoids the warning.</p>
+      </div>
+
+      <h3 id="selecting">Selecting rows and columns</h3>
+
+      <p>Slicing, boolean masks, and the two notations that trip everyone up
+        — <code>loc</code> (by label) and <code>iloc</code> (by position).
+        First, rows by condition, columns by name:</p>
+
+<pre><code>Auto[:3]
+idx_80 = Auto['year'] &gt; 80
+Auto[idx_80].head(3)
+Auto[['mpg', 'horsepower']].head(3)</code></pre>
+<pre class="out"><code>    mpg  cylinders  displacement  ...  year  origin                       name
+0  18.0          8         307.0  ...    70       1  chevrolet chevelle malibu
+1  15.0          8         350.0  ...    70       1          buick skylark 320
+2  18.0          8         318.0  ...    70       1         plymouth satellite
+
+[3 rows x 9 columns]
+      mpg  cylinders  displacement  ...  year  origin                    name
+338  27.2          4         135.0  ...    81       1        plymouth reliant
+339  26.6          4         151.0  ...    81       1           buick skylark
+340  25.8          4         156.0  ...    81       1  dodge aries wagon (sw)
+
+[3 rows x 9 columns]
+     mpg  horsepower
+0  18.0       130.0
+1  15.0       165.0
+2  18.0       150.0</code></pre>
+
+      <p>Now move the car names out of the columns and into the index, so you
+        can look cars up by name — then notice that the names are no longer
+        in <code>columns</code>:</p>
+
+<pre><code>Auto_re = Auto.set_index('name')
+Auto_re.columns
+Auto_re.loc[['amc rebel sst', 'ford torino']]
+Auto_re.iloc[[3, 4], [0, 2, 3]]</code></pre>
+<pre class="out"><code>Index(['mpg', 'cylinders', 'displacement', 'horsepower', 'weight',
+       'acceleration', 'year', 'origin'],
+      dtype='object')
+                mpg  cylinders  displacement  ...  acceleration  year  origin
+name                                          ...                             
+amc rebel sst  16.0          8         304.0  ...          12.0    70       1
+ford torino    17.0          8         302.0  ...          10.5    70       1
+
+[2 rows x 8 columns]
+                mpg  displacement  horsepower
+name                                        
+amc rebel sst  16.0         304.0       150.0
+ford torino    17.0         302.0       140.0</code></pre>
+
+      <p><code>loc</code> took a <em>list of names</em> and returned rows;
+        <code>iloc</code> took <em>numbers</em> and did the same. Keep the
+        letters straight: <strong>loc = label, iloc = integer</strong>. Both
+        accept <code>[rows, columns]</code> inside one pair of brackets, and
+        <code>iloc[[3, 4], [0, 2, 3]]</code> is the pandas version of the
+        <code>np.ix_</code> trick — rows and columns selected together, no
+        zip trap.</p>
+
+      <p>The lab closes with two <em>lambda</em> filters — a filter written
+        as an anonymous function, which is how you express conditions that
+        do not fit in one bracket expression:</p>
+
+<pre><code>Auto_re.loc[lambda df: (df['year'] &gt; 80) &amp; (df['mpg'] &gt; 30),
+            ['weight', 'origin']].head(4)</code></pre>
+<pre class="out"><code>                  weight  origin
+name                            
+toyota starlet    1755.0       3
+plymouth champ    1875.0       1
+honda civic 1300  1760.0       3
+subaru            2065.0       3</code></pre>
+
+<pre><code>Auto_re.loc[lambda df: (df['displacement'] &lt; 300)
+                 &amp; (df.index.str.contains('ford ')
+                    | df.index.str.contains('datsun ')),
+            ['weight', 'origin']].head(4)</code></pre>
+<pre class="out"><code>                  weight  origin
+name                            
+ford maverick    2587.0       1
+datsun pl510     2130.0       3
+datsun pl510     2130.0       3
+ford torino 500  3302.0       1</code></pre>
+
+      <div class="callout">
+        <p class="callout-title">Three pandas rules hidden in those two
+          blocks</p>
+        <p><code>df['col'] &gt; 80</code> returns a True/False list, not a
+          filtered table — you must feed it back in to select rows. Inside
+          conditions, <code>&amp;</code> and <code>|</code> replace
+          <code>and</code>/<code>or</code>, and each half needs its own
+          parentheses. And filtering on <em>text</em> means calling string
+          methods on <code>.str</code> — the index is a string column like
+          any other.</p>
+      </div>
+    </section>
+
+    <section id="s-loops">
+      <h2>8. For loops (2.3.8)</h2>
+
+      <p>You know loops; the lab's contribution is Python's string
+        formatting and one honest comparison against the vectorised
+        version. Three loops, three totals:</p>
+
+<pre><code>total = 0
+for value in [3, 2, 19]:
+    total += value
+print('Total is: {0}'.format(total))</code></pre>
+<pre class="out"><code>Total is: 24</code></pre>
+
+<pre><code>total = 0
+for value in [2, 3, 19]:
+    for weight in [3, 2, 1]:
+        total += value * weight
+print('Total is: {0}'.format(total))</code></pre>
+<pre class="out"><code>Total is: 144</code></pre>
+
+      <p>Iterating over two lists at once with <code>zip</code> — this is the
+        weighted average loop, and it is a restatement of the dot product you
+        met as <code>x · y</code> in numpy:</p>
+
+<pre><code>total = 0
+for value, weight in zip([2, 3, 19], [0.2, 0.3, 0.5]):
+    total += weight * value
+print('Weighted average is: {0}'.format(total))</code></pre>
+<pre class="out"><code>Weighted average is: 10.8</code></pre>
+
+      <p>The formatting deserves a look: <code>{0}</code> is "put the first
+        argument here", and <code>{1:.2%}</code> is "put the second argument
+        here, as a percentage with two decimals". The report loop that
+        follows uses that second form to audit a deliberately messy table —
+        a matrix with 20% of its entries replaced by <code>NaN</code>
+        (numpy's name for "missing"):</p>
+
+<pre><code>rng = np.random.default_rng(1)
+A = rng.standard_normal((127, 5))
+M = rng.choice([0, np.nan], p=[0.8, 0.2], size=A.shape)
+A += M
+D = pd.DataFrame(A, columns=['food', 'bar', 'pickle', 'snack', 'popcorn'])
+D.head(3)</code></pre>
+<pre class="out"><code>       food       bar    pickle     snack   popcorn
+0  0.345584  0.821618  0.330437 -1.303157       NaN
+1       NaN -0.536953  0.581118  0.364572  0.294132
+2       NaN  0.546713       NaN -0.162910 -0.482119</code></pre>
+
+<pre><code>for col in D.columns:
+    template = 'Column "{0}" has {1:.2%} missing values '
+    print(template.format(col, np.isnan(D[col]).mean()))</code></pre>
+<pre class="out"><code>Column "food" has 16.54% missing values 
+Column "bar" has 25.98% missing values 
+Column "pickle" has 29.13% missing values 
+Column "snack" has 21.26% missing values 
+Column "popcorn" has 22.83% missing values </code></pre>
+
+      <p>Read the middle of that line slowly: <code>np.isnan(D[col])</code>
+        turns each entry into True/False, and <code>.mean()</code> of a list
+        of booleans is <em>the fraction of Trues</em> — so it reports the
+        missing rate as a decimal, and the <code>{1:.2%}</code> format turns
+        it into a percentage for display. A missing-data audit in one line,
+        no loop needed beyond the one printing it.</p>
+
+      <div class="callout">
+        <p class="callout-title">Loop or array?</p>
+        <p>Both styles work, and the lab shows them side by side on purpose.
+          The numpy form (<code>x.sum()</code>, <code>(y - y.mean()) ** 2</code>)
+          is what the rest of the book writes — faster, and it cannot
+          accidentally skip a row. Loops are for control flow: this
+          <em>column</em> by <em>column</em> report, an early exit, a print.
+          Rule of thumb: if the loop body is arithmetic on a whole column,
+          the arithmetic already knows how to loop.</p>
+      </div>
+    </section>
+
+    <section id="s-summaries">
+      <h2>9. Additional graphical and numerical summaries (2.3.9)</h2>
+
+      <p>The last subsection does what you would actually do with a fresh
+        dataset: look at it. The first attempt fails in an instructive way —
+        naming a column as if it were a variable:</p>
+
+<pre><code>fig, ax = subplots(figsize=(8, 8))
+ax.plot(horsepower, mpg, 'o')</code></pre>
+<pre class="out"><code>NameError: name 'horsepower' is not defined</code></pre>
+
+      <p>Python does not know to look inside <code>Auto</code> for those
+        names, so you must point at the frame yourself. Once you do, the
+        scatter appears — and the shape in it (falling, then flattening) is
+        the first thing in the book that looks like a model waiting to
+        happen:</p>
+
+<pre><code>fig, ax = subplots(figsize=(8, 8))
+ax.plot(Auto['horsepower'], Auto['mpg'], 'o');</code></pre>
+
+      <figure class="shot">
+        <img src="assets/img/ch02/auto-scatter.png" alt="Scatter plot of miles per gallon against horsepower, falling steeply then flattening">
+        <figcaption>Miles per gallon against horsepower: a clear downward
+          relationship, steepest at low horsepower and flattening out — the
+          textbook reason not to fit a single straight line through
+          everything.</figcaption>
+      </figure>
+
+      <p>Before boxplots can group by <em>cylinders</em>, that column has to
+        be told it is a category rather than a count. The conversion, and
+        what it returns:</p>
+
+<pre><code>Auto.cylinders.dtype
+Auto.cylinders = pd.Series(Auto.cylinders, dtype='category')
+Auto.cylinders.dtype</code></pre>
+<pre class="out"><code>dtype('int64')
+CategoricalDtype(categories=[3, 4, 5, 6, 8], ordered=False,
+                 categories_dtype=int64)</code></pre>
+
+      <p>Five distinct values — 3, 4, 5, 6, 8 — all along. Compare that to
+        <code>mpg</code>, which has hundreds of distinct values: that is the
+        quantitative/qualitative distinction of section 2.1.5, visible in a
+        dtype. Then three views of the data:</p>
+
+<pre><code>fig, ax = subplots(figsize=(8, 8))
+Auto.boxplot('mpg', by='cylinders', ax=ax);</code></pre>
+
+      <div class="shotrow">
+        <figure>
+          <img src="assets/img/ch02/auto-boxplot.png" alt="Boxplots of miles per gallon grouped by number of cylinders">
+          <figcaption class="demo-note">Four-cylinder cars sit highest and
+            spread widest; eight-cylinder cars are low and tight.</figcaption>
+        </figure>
+        <figure>
+          <img src="assets/img/ch02/auto-hist.png" alt="Histogram of miles per gallon in red, twelve bins">
+          <figcaption class="demo-note">The distribution itself: two humps,
+            one for the big cars and one for the small ones.</figcaption>
+        </figure>
+      </div>
+
+<pre><code>fig, ax = subplots(figsize=(8, 8))
+Auto.hist('mpg', color='red', bins=12, ax=ax);</code></pre>
+<pre><code>fig, ax = subplots(figsize=(8, 8))
+pd.plotting.scatter_matrix(Auto[['mpg', 'displacement', 'weight']],
+                           ax=ax, figsize=(8, 8));</code></pre>
+
+      <figure class="shot">
+        <img src="assets/img/ch02/auto-matrix.png" alt="Scatterplot matrix of mpg, displacement and weight">
+        <figcaption>A scatterplot matrix: every pair among the three chosen
+          columns, plus each column's own histogram on the diagonal. Use it as
+          a first look — it answers "which of these move together?" in one
+          glance, and weight against mpg is unmistakable.</figcaption>
+      </figure>
+
+      <p>Finally, numbers instead of pictures. <code>describe()</code> gives
+        the standard summary — count, mean, standard deviation, and the four
+        quartiles — for numeric columns:</p>
+
+<pre><code>Auto[['mpg', 'weight']].describe()</code></pre>
+<pre class="out"><code>              mpg       weight
+count  392.000000   392.000000
+mean    23.445918  2977.584184
+std      7.805007   849.402560
+min      9.000000  1613.000000
+25%     17.000000  2225.250000
+50%     22.750000  2803.500000
+75%     29.000000  3614.750000
+max     46.600000  5140.000000</code></pre>
+
+      <p>And the same call on the now-categorical cylinders column tells a
+        different story — it summarises frequencies rather than arithmetic,
+        because a mean of cylinder counts would be meaningless:</p>
+
+<pre><code>Auto['cylinders'].describe()</code></pre>
+<pre class="out"><code>count     392
+unique      5
+top         4
+freq      199
+Name: cylinders, dtype: int64</code></pre>
+
+      <div class="callout ok">
+        <p class="callout-title">Lab 2.3 in one line</p>
+        <p>numpy for arithmetic on whole arrays, <code>subplots</code> for
+          every figure, slices that stop before their endpoint, masks and
+          <code>loc</code>/<code>iloc</code> for selection,
+          <code>na_values</code> plus <code>dropna()</code> for dirty data,
+          and <code>describe()</code> for the five-second summary — that is
+          the entire toolset the rest of the book runs on. Everything from
+          here on is these commands applied to a method.</p>
+      </div>
+    </section>
+
+    <footer style="margin-top:64px;font-size:13.5px;color:var(--muted);">
+      <p class="further">Source: ISLP, Lab 2.3 (pp. 40–62). Every code block
+        and output on this page was executed with the versions listed in the
+        setup section; the figures are the images that run produced. The data
+        files (<code>Auto.csv</code>, <code>Auto.data</code>) ship with the
+        ISLP package itself.</p>
+      <p>ISLP Plainly — <span data-year>2026</span></p>
+    </footer>
+  </main>
+
+  <!-- ======================= page TOC ======================= -->
+  <details class="page-toc" id="page-toc" open>
+    <summary>On this page</summary>
+    <p class="toc-title">On this page</p>
+    <nav aria-label="Table of contents">
+      <ol></ol>
+    </nav>
+  </details>
+</div>
+
+<div class="scrim" id="scrim"></div>
+
+</body>
+</html>

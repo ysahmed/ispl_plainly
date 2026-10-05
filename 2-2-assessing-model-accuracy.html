@@ -1,0 +1,451 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>2.2 · Assessing model accuracy — ISLP Plainly</title>
+<meta name="description" content="ISLP section 2.2 in plain language: mean squared error, training versus test error, the bias–variance trade-off, overfitting, the Bayes classifier and KNN — with interactive charts you can break on purpose.">
+<link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css">
+<link rel="stylesheet" href="assets/css/style.css">
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/contrib/auto-render.min.js"></script>
+<script defer src="assets/js/plots.js"></script>
+<script defer src="assets/js/nav.js"></script>
+<script defer src="assets/js/demos/fn-flex.js"></script>
+<script defer src="assets/js/demos/bias-var.js"></script>
+<script defer src="assets/js/demos/fn-bayes.js"></script>
+<script defer src="assets/js/demos/knn-boundary.js"></script>
+<script defer src="assets/js/common.js"></script>
+</head>
+<body>
+
+<a class="skip-link" href="#main">Skip to content</a>
+
+<header class="topbar">
+  <button class="icon-btn" data-sidebar-toggle aria-label="Open navigation menu" aria-controls="sidebar">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 7h16M4 12h16M4 17h16"/></svg>
+  </button>
+  <span class="topbar-title">2.2 · Assessing model accuracy</span>
+</header>
+
+<div class="app">
+
+  <!-- ======================= sidebar ======================= -->
+  <aside class="sidebar" id="sidebar">
+    <div class="brand">
+      <span class="logo">∑</span>
+      <a href="index.html">ISLP Plainly</a>
+    </div>
+
+    <nav class="side-nav" aria-label="Site navigation"></nav>
+
+    <div class="side-foot">
+      <button class="theme-btn" data-theme-toggle type="button">
+        <svg class="sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2m0 16v2M4.9 4.9l1.4 1.4m11.4 11.4 1.4 1.4M2 12h2m16 0h2M4.9 19.1l1.4-1.4m11.4-11.4 1.4-1.4"/></svg>
+        <svg class="moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg>
+        <span class="theme-label">Dark mode</span>
+      </button>
+    </div>
+  </aside>
+
+  <!-- ======================= main ======================= -->
+  <main id="main">
+
+    <div class="page-head">
+      <p class="eyebrow">Chapter 2 · section 2.2 · book pages 27–40</p>
+      <h1>Assessing model accuracy</h1>
+      <p class="lede">No method is best for every dataset — the book says so
+        outright — so the real question is always “how good is <em>this</em>
+        method on <em>this</em> data?”. Answering it needs a number (mean
+        squared error), an honest place to compute it (data you did not train
+        on), and one piece of theory that explains why the answer has a
+        U shape.</p>
+    </div>
+
+    <section id="reading">
+      <h2>Reading</h2>
+      <ul class="reading">
+        <li><span class="r-label">Read</span>
+          <span class="r-body">All of 2.2 — it is short (fourteen pages) and
+            it is the most reusable section in the chapter. Figures 2.9 to
+            2.11 and Figure 2.17 are the ones people come back to.</span></li>
+        <li><span class="r-label">Slow down on</span>
+          <span class="r-body">2.2.2, the bias–variance trade-off. Everything
+            about overfitting for the rest of the book is a restatement of
+            it.</span></li>
+        <li><span class="r-label">Reappears in</span>
+          <span class="r-body">Chapter 5 (cross-validation — actually
+            estimating test error when you have no test data) and Chapter 6
+            (choosing the model with the best estimate).</span></li>
+      </ul>
+
+      <div class="keybox">
+        <p class="keybox-title">Key ideas</p>
+        <p>Score a model by the average squared miss on data it never trained
+          on — the <strong>test MSE</strong>. Training error is easy to compute
+          and misleadingly low: methods are built to minimise it, so it only
+          ever falls as you add flexibility, while test error falls, bottoms
+          out, then climbs (the U shape). The U exists because test error
+          breaks into three stacked pieces — irreducible noise, bias (too
+          stiff), variance (too twitchy) — and flexibility pushes bias down
+          while pushing variance up. In classification the same story is told
+          by error rates, with the <strong>Bayes error rate</strong> as the
+          floor no classifier can pass.</p>
+      </div>
+
+      <h3>What you will know afterwards</h3>
+      <ul class="chips">
+        <li class="chip">computing an MSE by hand</li>
+        <li class="chip">training error vs test error</li>
+        <li class="chip">why the U shape appears</li>
+        <li class="chip">bias², variance, σ² stacked</li>
+        <li class="chip">overfitting, precisely</li>
+        <li class="chip">the Bayes classifier and its floor</li>
+        <li class="chip">choosing K in KNN</li>
+      </ul>
+    </section>
+
+    <section id="nolunch">
+      <h2>1. No free lunch: why a ruler is needed</h2>
+
+      <p>Section 2.2 opens with the reason this section exists. The book
+        plans to teach you many methods, not one, because <em>no method wins
+        everywhere</em>: the best performer on one dataset may be mediocre on
+        the next, similar-but-different dataset. So for every analysis you
+        have to decide which method is working best <strong>here</strong> —
+        and that decision needs a measurement, not an opinion.</p>
+
+      <div class="callout">
+        <p class="callout-title">The practical consequence</p>
+        <p>You will never get to see the answer key. Almost all real analyses
+          run on data with no held-back test set sitting in a drawer, which is
+          why the last line of this section points at cross-validation
+          (Chapter 5): estimating the test error <em>from the training
+          data</em>. Understand the target first, then the estimate.</p>
+      </div>
+    </section>
+
+    <section id="quality">
+      <h2>2. Measuring the quality of fit (2.2.1)</h2>
+
+      <p>In the regression setting the standard score is the <strong>mean
+        squared error</strong>: predict, subtract the truth, square the miss,
+        do it for every row, average.</p>
+
+      $$\text{MSE} = \frac{1}{n}\sum_{i=1}^{n}\bigl(y_i - \hat{f}(x_i)\bigr)^2$$
+
+      <p>Read it as a sentence: <em>"for each of the n rows, take the answer
+        we gave minus the answer that happened, square it so misses always
+        count positive and big misses count much more, then average."</em>
+        Squaring does two jobs: it kills the minus signs (a miss of −5 and a
+        miss of +5 are equally bad) and it punishes a few large misses more
+        than many small ones.</p>
+
+      <h3 id="train-test">Two MSEs, and only one of them is honest</h3>
+
+      <p>Compute the MSE on the rows you trained with and you get the
+        <strong>training MSE</strong> — cheap, available, and the wrong
+        question. What you actually care about is a row you have never seen:
+        a new customer, a next day, a different patient. The book writes that
+        as the <strong>test MSE</strong>, the average squared miss on fresh
+        observations (x₀, y₀).</p>
+
+      <p>The trap: methods <em>choose their coefficients to minimise the
+        training MSE</em>. So training error can always be driven down — give
+        a model enough freedom and it will pass through your data almost
+        exactly — while its behaviour on new rows gets worse and worse. Watch
+        both curves move as you drag the flexibility slider:</p>
+
+      <figure class="demo" id="demo-fn-flex">
+        <div class="demo-body grid2">
+          <canvas id="cv-flex-fit"></canvas>
+          <canvas id="cv-flex-mse"></canvas>
+        </div>
+        <div class="demo-controls">
+          <span class="ctrl">
+            <label for="fn-degree">flexibility (polynomial degree)</label>
+            <input type="range" id="fn-degree" min="1" max="15" value="1">
+          </span>
+          <span class="ro" id="fn-flex-train">…</span>
+          <span class="ro" id="fn-flex-test">…</span>
+          <span class="ro" id="fn-flex-best">…</span>
+          <span class="ro" id="fn-flex-zone">…</span>
+        </div>
+        <figcaption><strong>Play with it:</strong> left — your fit (red)
+          chasing the training points; the grey dashed curve is the true f you
+          never get to see, and the faint dots are held-out test points. Right
+          — both errors across all fifteen flexibilities. The <strong>training
+          line falls forever</strong> (more freedom never hurts your own
+          homework) while the <strong>test line falls, bottoms out, then
+          explodes</strong> — the U shape of Figures 2.9 to 2.11. The flat
+          dashed floor is Var(ε): the irreducible noise, the lowest test MSE
+          any method could possibly reach. Drag past the bottom and the verdict
+          flips to <em>overfit</em>.</figcaption>
+      </figure>
+
+      <p>Three details the book is careful about:</p>
+
+      <ul>
+        <li><strong>Training MSE is almost always lower than test MSE</strong>,
+          whether or not you have overfit — methods are built to minimise the
+          first.</li>
+        <li><strong>Overfitting has a precise meaning</strong>: not “the test
+          error is high”, but “a <em>less</em> flexible model would have had a
+          smaller test error”. The word names the wrong choice, not the bad
+          result.</li>
+        <li><strong>The best flexibility moves around.</strong> Where the
+          bottom of the U sits depends on the dataset — sometimes at “a
+          straight line”, sometimes far to the right. Which is why you need a
+          way to find it, not a favourite setting.</li>
+      </ul>
+
+      <div class="callout warn">
+        <p class="callout-title">The easy part and the hard part</p>
+        <p>Training MSE: you can always compute it. Test MSE: you usually
+          cannot, because you have no test data. The rest of this book spends
+          a lot of energy on that gap — Chapter 5's cross-validation splits
+          your data into pretend-train and pretend-test over and over to get
+          an estimate without ever touching outside data.</p>
+      </div>
+    </section>
+
+    <section id="bias-variance">
+      <h2>3. The bias–variance trade-off (2.2.2)</h2>
+
+      <p>Why would test error ever go <em>up</em> as a model gets smarter?
+        Because it is not one error but three, stacked — and they do not move
+        together:</p>
+
+      $$\text{test MSE} = \underbrace{\text{Bias}^2}_{\text{too stiff}}
+        + \underbrace{\text{Variance}}_{\text{too twitchy}}
+        + \underbrace{\text{Var}(\varepsilon)}_{\text{fixed}}$$
+
+      <p>Read as: <em>"the error you will see on new data equals how badly
+        the method's assumed shape misses reality, plus how much the fit
+        jumps around when you redraw the data, plus the noise floor you can
+        never beat."</em></p>
+
+      <div class="defs">
+        <div><span class="sym">Bias²</span>
+          <span class="mean"><strong>Systematic wrongness.</strong> How far
+            the <em>average</em> fit sits from the true f, over and over.
+            A straight line fitted to a curved world has high bias: it is
+            wrong the same way every time. <em>More flexibility → less
+            bias.</em></span></div>
+        <div><span class="sym">Variance</span>
+          <span class="mean"><strong>Twitchiness.</strong> How much the fit
+            changes if you redraw the training data and run the method again.
+            A model that treats noise as pattern swings wildly from sample to
+            sample. <em>More flexibility → more variance.</em></span></div>
+        <div><span class="sym">Var(ε)</span>
+          <span class="mean"><strong>The floor.</strong> The irreducible
+            noise from Section 1. It does not care what you do, so it is a
+            flat line under every chart.</span></div>
+      </div>
+
+      <p>Below, the same experiment the book ran three times (Figures 2.9,
+        2.10 and 2.11): a simulated truth, a fixed amount of noise, and a
+        method whose flexibility you control. The left panel shows what one
+        fit looks like; the right panel takes the test MSE apart into its
+        three pieces:</p>
+
+      <figure class="demo" id="demo-biasvar">
+        <div class="demo-body grid2">
+          <canvas id="cv-bv-fit"></canvas>
+          <canvas id="cv-bv-decomp"></canvas>
+        </div>
+        <div class="demo-controls">
+          <span class="ctrl" role="group" aria-label="True relationship">
+            <button class="btn" type="button" data-truth="line" aria-pressed="false">truth ≈ straight</button>
+            <button class="btn" type="button" data-truth="curve" aria-pressed="true">truth is curved</button>
+            <button class="btn" type="button" data-truth="wild" aria-pressed="false">truth is wild</button>
+          </span>
+          <span class="ctrl">
+            <label for="bv-degree">flexibility</label>
+            <input type="range" id="bv-degree" min="1" max="15" value="1">
+          </span>
+          <span class="ro" id="bv-shape">…</span>
+          <span class="ro" id="bv-bias">…</span>
+          <span class="ro" id="bv-var">…</span>
+          <span class="ro" id="bv-total">…</span>
+          <span class="ro" id="bv-verdict">…</span>
+        </div>
+        <figcaption><strong>Play with it:</strong> left — the truth (dashed),
+          one draw of the data (green), six of the forty redraws of the same
+          method (faint red), and their average (solid red). When the faint
+          lines fan out, that spread <em>is</em> variance; when the solid line
+          sits away from the truth, that gap <em>is</em> bias. Right — the
+          test MSE stacked from the bottom: grey σ² (fixed), blue bias²,
+          red variance, with the total as the dark line. Push flexibility up
+          and watch the blue band shrink while the red band balloons; the
+          verdict tells you which one is winning. Now switch the
+          <strong>truth</strong>: almost-straight makes the straight-line end
+          best (Figure 2.10), wildly non-linear makes flexibility pay off much
+          longer (Figure 2.11).</figcaption>
+      </figure>
+
+      <p>How to read the three verdicts:</p>
+
+      <ul>
+        <li><strong>Too stiff — bias dominates.</strong> The model cannot
+          follow the shape; every redraw gives the same wrong answer, so
+          variance is small and bias² is the whole error. Raise
+          flexibility.</li>
+        <li><strong>Too twitchy — variance dominates.</strong> The model is
+          fitting the noise; each redraw gives a different answer, so
+          variance swamps bias². Lower flexibility.</li>
+        <li><strong>Near the balance point.</strong> The bottom of the U —
+          every other degree scores a higher test error: one step down would
+          trade variance back for bias, one step up buys variance for
+          nothing.</li>
+      </ul>
+
+      <div class="callout ok">
+        <p class="callout-title">The one sentence to remember</p>
+        <p>Adding flexibility always reduces bias and always increases
+          variance; test MSE is their sum plus a constant, so somewhere in
+          between is a minimum — and <em>where</em> that minimum sits is
+          different for every dataset. Finding it is the job of Chapter 5.</p>
+      </div>
+    </section>
+
+    <section id="classification">
+      <h2>4. The classification setting (2.2.3)</h2>
+
+      <p>When the response is a category, the score is the
+        <strong>error rate</strong>: the fraction of rows you labelled
+        wrongly. Everything else carries over — training error is on the rows
+        you fitted, test error is on rows you did not, flexibility still
+        produces a U shape — but classification adds two ideas of its own.</p>
+
+      <h3 id="bayes">The Bayes classifier, and the floor it establishes</h3>
+
+      <p>Suppose you knew the true probabilities: at every possible input x,
+        the chance of each class. The best possible rule would then be obvious
+        — <strong>pick the most likely class</strong>. That rule has a name,
+        the <strong>Bayes classifier</strong>, and where the two class
+        probabilities are exactly equal you are standing on the <strong>Bayes
+        decision boundary</strong>.</p>
+
+      <p>Even the Bayes classifier makes mistakes, because the classes
+        genuinely overlap: some people with identical measurements end up in
+        different classes. How often it is wrong is the <strong>Bayes error
+        rate</strong> — the classification twin of Var(ε). No classifier, with
+        any amount of data, gets under it:</p>
+
+      <figure class="demo" id="demo-fn-bayes">
+        <div class="demo-body"><canvas id="cv-fn-bayes"></canvas></div>
+        <div class="demo-controls">
+          <button class="btn" data-rule="bayes" type="button" aria-pressed="true">Bayes rule</button>
+          <button class="btn" data-rule="vsplit" type="button" aria-pressed="false">threshold on one feature</button>
+          <button class="btn" data-rule="knn" type="button" aria-pressed="false">1-nearest-neighbour</button>
+          <span class="ro" id="fn-bayes-err">…</span>
+          <span class="ro" id="fn-bayes-floor">…</span>
+          <span class="ro" id="fn-bayes-rule">…</span>
+        </div>
+        <figcaption><strong>Play with it:</strong> two clouds with one
+          unavoidable overlap — that blending <em>is</em> the noise.
+          <strong>Bayes rule</strong> cuts with the perfect line and lands on
+          the floor. <strong>Threshold on one feature</strong> only looks at a
+          single input, so every mistake it makes beyond the floor is
+          <em>reducible</em> — you could do better with the same data.
+          <strong>1-nearest-neighbour</strong> uses no formula at all, yet
+          comes close to the oracle, at the price of a jagged, twitchy
+          boundary (the shaded cells redraw themselves as you switch). Hover
+          the plot to read the true probability at your pointer — that
+          probability field is what Bayes sees and what your rule can only
+          guess at. Crossed points are mistakes; watch your error against the
+          floor.</figcaption>
+      </figure>
+
+      <h3 id="knn-classifier">KNN as the practical approximation</h3>
+
+      <p>Nobody has the true probabilities, so the KNN classifier estimates
+        them from data instead: find the K training rows nearest to the query
+        and take their majority class (or their class fraction, if you want a
+        probability). Small K hugs the data; large K smooths towards the
+        overall class frequency. K is the flexibility knob again — and it
+        behaves exactly as Section 3 promised:</p>
+
+      <figure class="demo" id="demo-knn-boundary">
+        <div class="demo-body grid2">
+          <canvas id="cv-kb-boundary"></canvas>
+          <canvas id="cv-kb-error"></canvas>
+        </div>
+        <div class="demo-controls">
+          <span class="ctrl">
+            <label for="kb-k">K</label>
+            <input type="range" id="kb-k" min="0" max="7" step="1" value="2">
+          </span>
+          <span class="ro" id="kb-kread">…</span>
+          <span class="ro" id="kb-train">…</span>
+          <span class="ro" id="kb-test">…</span>
+          <span class="ro" id="kb-floor">…</span>
+        </div>
+        <figcaption><strong>Play with it:</strong> left — the boundary KNN
+          draws (shaded cells) against the Bayes boundary (dashed), on 200
+          training points. Right — the book's Figure 2.17: training error
+          (blue) and test error (red) against flexibility, 1/K on a log
+          scale, with the Bayes error rate as the dashed floor. At K = 1 the
+          boundary boils around every point and test error spikes while
+          training error sits at zero; at K = 150 the boundary is nearly
+          straight and both errors climb again. The bottom of that red curve
+          — around K = 10 in this data — is the answer the whole section has
+          been aiming at.</figcaption>
+      </figure>
+
+      <ul>
+        <li><strong>K = 1</strong> gives zero training error (each point is
+          its own nearest neighbour) and a boundary so wiggly that fresh
+          points land on the wrong side. Perfect homework, poor predictions —
+          the classification version of overfitting.</li>
+        <li><strong>K very large</strong> is one majority vote over nearly
+          the whole dataset: a boundary that is nearly a straight line,
+          indifferent to the actual shape. Underfitting.</li>
+        <li><strong>Somewhere in between</strong> the two curves come closest
+          to the floor. Note that neither curve reaches it: the gap that
+          remains is the irreducible overlap of the two clouds.</li>
+      </ul>
+
+      <div class="callout ok">
+        <p class="callout-title">Section 2.2 in one line</p>
+        <p>Score models on data they have not seen; expect training error to
+          lie to you; expect test error to form a U as flexibility grows,
+          because bias falls while variance rises; and remember that in
+          classification the Bayes error rate is a hard floor — the goal is to
+          get close to it, not to reach zero.</p>
+      </div>
+
+      <div class="callout warn">
+        <p class="callout-title">Safe to skip on a first pass</p>
+        <p>The formal expressions for expected test error (equations 2.13 and
+          2.14 in some printings) just say what the stacked chart says
+          visually. If you can read the chart, you have the idea.</p>
+      </div>
+    </section>
+
+    <footer style="margin-top:64px;font-size:13.5px;color:var(--muted);">
+      <p class="further">Source: ISLP, Section 2.2 (pp. 27–40). All four
+        charts are simulated and fitted live in your browser: the
+        bias–variance chart runs 40 redraws of a polynomial fit per degree,
+        and the KNN error curves are computed on 200 training and 1,500 test
+        points generated from the same mixture as the book's Figure 2.13.</p>
+      <p>ISLP Plainly — <span data-year>2026</span></p>
+    </footer>
+  </main>
+
+  <!-- ======================= page TOC ======================= -->
+  <details class="page-toc" id="page-toc" open>
+    <summary>On this page</summary>
+    <p class="toc-title">On this page</p>
+    <nav aria-label="Table of contents">
+      <ol></ol>
+    </nav>
+  </details>
+</div>
+
+<div class="scrim" id="scrim"></div>
+
+</body>
+</html>

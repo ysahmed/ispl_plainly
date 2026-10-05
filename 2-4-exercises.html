@@ -1,0 +1,1053 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>2.4 · Exercises — ISLP Plainly</title>
+<meta name="description" content="Worked solutions to ISLP Chapter 2's exercises: flexible versus inflexible methods, classification versus regression, the five bias-variance curves, KNN by hand, and applied work on the College, Auto and Boston datasets with real code and outputs.">
+<link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css">
+<link rel="stylesheet" href="assets/css/style.css">
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/contrib/auto-render.min.js"></script>
+<script defer src="assets/js/plots.js"></script>
+<script defer src="assets/js/nav.js"></script>
+<script defer src="assets/js/common.js"></script>
+</head>
+<body>
+
+<a class="skip-link" href="#main">Skip to content</a>
+
+<header class="topbar">
+  <button class="icon-btn" data-sidebar-toggle aria-label="Open navigation menu" aria-controls="sidebar">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 7h16M4 12h16M4 17h16"/></svg>
+  </button>
+  <span class="topbar-title">2.4 · Exercises</span>
+</header>
+
+<div class="app">
+
+  <!-- ======================= sidebar ======================= -->
+  <aside class="sidebar" id="sidebar">
+    <div class="brand">
+      <span class="logo">∑</span>
+      <a href="index.html">ISLP Plainly</a>
+    </div>
+
+    <nav class="side-nav" aria-label="Site navigation"></nav>
+
+    <div class="side-foot">
+      <button class="theme-btn" data-theme-toggle type="button">
+        <svg class="sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2m0 16v2M4.9 4.9l1.4 1.4m11.4 11.4 1.4 1.4M2 12h2m16 0h2M4.9 19.1l1.4-1.4m11.4-11.4 1.4-1.4"/></svg>
+        <svg class="moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg>
+        <span class="theme-label">Dark mode</span>
+      </button>
+    </div>
+  </aside>
+
+  <!-- ======================= main ======================= -->
+  <main id="main">
+
+    <div class="page-head">
+      <p class="eyebrow">Chapter 2 · exercises · book pages 63–68</p>
+      <h1>Exercises</h1>
+      <p class="lede">Seven conceptual questions that test whether the
+        vocabulary of section 2.1 and 2.2 actually stuck, and three applied
+        ones run against real datasets. The statement of each exercise sits
+        outside; the worked answer is folded underneath — try it first, then
+        open it.</p>
+    </div>
+
+    <section id="reading">
+      <h2>Reading</h2>
+      <ul class="reading">
+        <li><span class="r-label">Try first</span>
+          <span class="r-body">Every answer is inside a folded panel. The
+            exercises are the point of the chapter — reading a solution you
+            could not produce feels like progress and isn't.</span></li>
+        <li><span class="r-label">Conceptual 1–7</span>
+          <span class="r-body">No code. If 1, 3, 5 and 6 give you trouble,
+            re-read sections 2.2.1–2.2.2; if 2 or 4 do, re-read 2.1.5.</span></li>
+        <li><span class="r-label">Applied 8–10</span>
+          <span class="r-body">Run the code yourself. All outputs and figures
+            below were produced by executing the blocks with the lab's setup
+            (ISLP 0.4.1); College.csv ships with the book's website, Boston
+            loads from <code>ISLP.load_data</code>.</span></li>
+      </ul>
+
+      <div class="keybox">
+        <p class="keybox-title">Key ideas these exercises drill</p>
+        <p>Whether a flexible method helps depends on n, p, how non-linear
+          the truth is, and how much noise there is — the four horses of
+          section 2.2.2. Every problem can be classified by response type
+          (regression vs classification) and by goal (prediction vs
+          inference), which also gives you n and p for free. The five-curve
+          sketch in exercise 3 <em>is</em> the bias–variance trade-off, drawn
+          from memory. And KNN at exercise 7 is the whole of section 2.2.3
+          with six rows of arithmetic.</p>
+      </div>
+
+      <ul class="chips">
+        <li class="chip">n, p, flexibility, noise</li>
+        <li class="chip">the five-curve sketch</li>
+        <li class="chip">KNN distances by hand</li>
+        <li class="chip">describe() as a summary</li>
+        <li class="chip">missing values in Auto</li>
+        <li class="chip">reading scatterplot matrices</li>
+      </ul>
+    </section>
+
+    <section id="conceptual">
+      <h2>Conceptual (exercises 1–7)</h2>
+
+      <!-- ---------------------------------------------------- exercise 1 -->
+      <div class="ex" id="ex-1">
+        <div class="ex-head">
+          <span class="ex-id">1</span>
+          <p class="ex-title">When does flexibility help?</p>
+        </div>
+
+        <p>For each scenario, say whether a flexible statistical learning
+          method should beat an inflexible one — and justify it:</p>
+        <ol class="ex-letters">
+          <li>n is extremely large and p is small.</li>
+          <li>p is extremely large and n is small.</li>
+          <li>The relationship between predictors and response is highly
+            non-linear.</li>
+          <li>The variance of the error terms, $\sigma^2$, is extremely
+            high.</li>
+        </ol>
+
+        <p class="covers"><b>Covers:</b> section 2.2.2 — bias, variance, and
+          what each of n, p and σ² does to them.</p>
+
+        <details class="fold">
+          <summary>Answer</summary>
+          <div class="fold-body">
+            <ol class="ex-letters">
+              <li><strong>Flexible is better.</strong> With that much data,
+                the variance of a complex fit is pinned down — the model has
+                plenty of examples to learn every wiggle from, so the bias of
+                a stiff model (its inability to follow the truth) becomes the
+                limiting error. Freedom is cheap when data is plentiful.</li>
+              <li><strong>Inflexible is better.</strong> Many predictors
+                spread n observations thinly across a huge space — neighbours
+                in p dimensions stop being neighbours, so a flexible method
+                estimates each local wiggle from a handful of points and
+                swings wildly between samples. High variance, little data to
+                control it.</li>
+              <li><strong>Flexible is better.</strong> If the truth really is
+                wiggly, a simple assumed shape has structural bias no amount
+                of data will fix: it is wrong the same way every time.
+                Flexibility is the only way to shrink that error.</li>
+              <li><strong>Inflexible is better.</strong> The noise is already
+                a large floor under every method. A flexible model will also
+                spend its freedom fitting that noise — you pay variance on top
+                of an irreducible error that was high to begin with. A simple
+                model averages the noise out instead.</li>
+            </ol>
+            <p>The pattern: flexibility pays when the error it removes is
+              <em>bias</em> (small n is not the problem, complex truth is),
+              and hurts when the error it adds is <em>variance</em> (small n,
+              many p, lots of noise). That is the trade-off of section 2.2.2
+              applied to four corners of the map.</p>
+          </div>
+        </details>
+      </div>
+
+      <!-- ---------------------------------------------------- exercise 2 -->
+      <div class="ex" id="ex-2">
+        <div class="ex-head">
+          <span class="ex-id">2</span>
+          <p class="ex-title">Regression or classification? Prediction or inference?</p>
+        </div>
+
+        <p>For each scenario: is it a classification or a regression problem,
+          is the interest in inference or prediction, and what are n and p?</p>
+        <ol class="ex-letters">
+          <li>Data on the top 500 US firms: profit, number of employees,
+            industry, CEO salary. We want to understand which factors affect
+            CEO salary.</li>
+          <li>We are launching a new product and want to know whether it will
+            succeed or fail. We collect data on 20 similar past products:
+            their outcome, price charged, marketing budget, competition's
+            price, and ten other variables.</li>
+          <li>We want to predict the % change in the USD/Euro exchange rate
+            from weekly changes in world stock markets, using weekly data for
+            all of 2012 (each week records the exchange-rate change and the
+            changes in the US, British and German markets).</li>
+        </ol>
+
+        <p class="covers"><b>Covers:</b> sections 2.1.1 (prediction vs
+          inference) and 2.1.5 (regression vs classification); n and p from
+          Chapter 1's notation.</p>
+
+        <details class="fold">
+          <summary>Answer</summary>
+          <div class="fold-body">
+            <table>
+              <thead>
+                <tr><th>Scenario</th><th>Problem</th><th>Goal</th><th>n</th><th>p</th></tr>
+              </thead>
+              <tbody>
+                <tr><td>(a) CEO salary</td>
+                    <td><strong>Regression</strong> — salary is a number</td>
+                    <td><strong>Inference</strong> — “understanding which
+                      factors affect” it</td>
+                    <td>500</td><td>3 (profit, employees, industry)</td></tr>
+                <tr><td>(b) Product success</td>
+                    <td><strong>Classification</strong> — success / failure</td>
+                    <td><strong>Prediction</strong> — “whether it will be a
+                      success”</td>
+                    <td>20</td><td>13 (price, marketing, competition price
+                      + 10 others)</td></tr>
+                <tr><td>(c) Exchange rate</td>
+                    <td><strong>Regression</strong> — a % change is a
+                      number</td>
+                    <td><strong>Prediction</strong> — “predicting the %
+                      change”</td>
+                    <td>52 (weeks)</td><td>3 (US, UK, German market changes)</td></tr>
+              </tbody>
+            </table>
+            <p>Two details worth noticing. The response decides the problem
+              type — never the number of predictors: scenario (c) has three
+              inputs but still regresses. And n comes from the rows you
+              actually collected: 50 firms is 50 rows even if each row
+              carries 30 measurements; scenario (b) has only n = 20, which
+              already hints that a flexible model will struggle there.</p>
+          </div>
+        </details>
+      </div>
+
+      <!-- ---------------------------------------------------- exercise 3 -->
+      <div class="ex" id="ex-3">
+        <div class="ex-head">
+          <span class="ex-id">3</span>
+          <p class="ex-title">The five-curve sketch</p>
+        </div>
+
+        <p>Draw, on a single plot with flexibility on the x-axis and error on
+          the y-axis, five labelled curves: squared bias, variance, training
+          error, test error, and Bayes (irreducible) error. Then explain why
+          each has the shape you drew.</p>
+
+        <p class="covers"><b>Covers:</b> sections 2.2.1–2.2.2 — the whole
+          chapter compressed into one figure.</p>
+
+        <details class="fold">
+          <summary>Answer</summary>
+          <div class="fold-body">
+            <p>The shapes, from left (stiff) to right (flexible):</p>
+            <table>
+              <thead>
+                <tr><th>Curve</th><th>Shape</th><th>Why</th></tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td><strong>Bayes / irreducible error</strong></td>
+                  <td>horizontal line, low</td>
+                  <td>The noise in the data. No method, flexible or not, can
+                    get under it — it does not move with flexibility.</td>
+                </tr>
+                <tr>
+                  <td><strong>Squared bias</strong></td>
+                  <td>falls from high, flattens near zero</td>
+                  <td>A stiff model cannot follow the truth (wrong in the
+                    same way every time); as flexibility grows, the assumed
+                    shape stops being a constraint.</td>
+                </tr>
+                <tr>
+                  <td><strong>Variance</strong></td>
+                  <td>starts near zero, rises</td>
+                  <td>A stiff model barely changes when you redraw the data;
+                    a flexible model changes a lot, because it has enough
+                    freedom to follow each sample's noise.</td>
+                </tr>
+                <tr>
+                  <td><strong>Training error</strong></td>
+                  <td>falls, never rises</td>
+                  <td>More freedom can always fit your own data at least as
+                    well — a flexible method can pass through the points.
+                    This is the only monotone curve of the five.</td>
+                </tr>
+                <tr>
+                  <td><strong>Test error</strong></td>
+                  <td><strong>U shape</strong></td>
+                  <td>It is bias² + variance + a constant: falling bias pulls
+                    it down at first, rising variance pushes it back up
+                    later, and the bottom is the balance point.</td>
+                </tr>
+              </tbody>
+            </table>
+            <p>Handy check for your own sketch: training error always sits
+              below test error, the two can meet only on the far right if at
+              all, and test error can never dip below the Bayes line. If your
+              drawing violates any of those, redraw it — and compare with the
+              interactive chart on the
+              <a href="2-2-assessing-model-accuracy.html#bias-variance">2.2
+              page</a>, which draws bias², variance and σ² stacked for
+              real.</p>
+          </div>
+        </details>
+      </div>
+
+      <!-- ---------------------------------------------------- exercise 4 -->
+      <div class="ex" id="ex-4">
+        <div class="ex-head">
+          <span class="ex-id">4</span>
+          <p class="ex-title">Invent the applications</p>
+        </div>
+
+        <p>Describe three real-life applications each for (a) classification,
+          (b) regression, and (c) cluster analysis. For (a) and (b): name the
+          response, the predictors, and whether the goal is inference or
+          prediction.</p>
+
+        <p class="covers"><b>Covers:</b> sections 2.1.1, 2.1.4 and 2.1.5.</p>
+
+        <details class="fold">
+          <summary>Answer (three per type — yours will differ)</summary>
+          <div class="fold-body">
+            <p><strong>(a) Classification</strong> — response is a
+              category:</p>
+            <ul>
+              <li><em>Spam filter.</em> Response: spam / not spam. Predictors:
+                words and links in the message, sender history, time of day.
+                <strong>Prediction</strong> — nobody needs an explanation,
+                they need each incoming message sorted.</li>
+              <li><em>Credit default.</em> Response: default / no default.
+                Predictors: income, payment history, credit utilisation,
+                employment. <strong>Prediction</strong>, though regulators
+                will also demand inference-flavoured evidence about which
+                factors drive the decision.</li>
+              <li><em>Which treatment works for this patient.</em> Response:
+                one of K treatment outcomes. Predictors: symptoms, lab
+                results, age, prior history. <strong>Prediction</strong>,
+                with an inference side: clinicians want to know which
+                biomarkers matter.</li>
+            </ul>
+            <p><strong>(b) Regression</strong> — response is a number:</p>
+            <ul>
+              <li><em>House price.</em> Response: sale price. Predictors:
+                size, rooms, location, age, condition. <strong>Prediction</strong>
+                (an estimate for a listing).</li>
+              <li><em>Effect of advertising on sales.</em> Response: sales.
+                Predictors: TV, radio, newspaper budgets.
+                <strong>Inference</strong> — the question is which medium
+                matters and by how much, which is literally this book's
+                running example in Chapter 3.</li>
+              <li><em>Energy demand tomorrow.</em> Response: kWh. Predictors:
+                forecast temperature, day of week, holiday calendar, lagged
+                demand. <strong>Prediction</strong>.</li>
+            </ul>
+            <p><strong>(c) Cluster analysis</strong> — no response at
+              all:</p>
+            <ul>
+              <li>Customer segmentation for marketing — the book's own
+                example: group buyers before designing a campaign, because
+                there is no answer column to predict.</li>
+              <li>Grouping patients by symptom and test profiles to see
+                whether diseases fall into subtypes nobody has named
+                yet.</li>
+              <li>Grouping documents, products or crime reports by similarity
+                for triage and search — you learn the groups, then a human
+                decides what they mean (this is the unsupervised mode of the
+                <a href="2-1-what-is-statistical-learning.html#supervised">2.1
+                demo</a>).</li>
+            </ul>
+          </div>
+        </details>
+      </div>
+
+      <!-- ---------------------------------------------------- exercise 5 -->
+      <div class="ex" id="ex-5">
+        <div class="ex-head">
+          <span class="ex-id">5</span>
+          <p class="ex-title">Very flexible vs less flexible: pros and cons</p>
+        </div>
+
+        <p>What are the advantages and disadvantages of a very flexible
+          approach (versus a less flexible one) for regression or
+          classification? When would you prefer each?</p>
+
+        <p class="covers"><b>Covers:</b> sections 2.1.3 and 2.2.2.</p>
+
+        <details class="fold">
+          <summary>Answer</summary>
+          <div class="fold-body">
+            <table>
+              <thead>
+                <tr><th></th><th>Very flexible</th><th>Less flexible</th></tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td><strong>Advantages</strong></td>
+                  <td>Can follow genuinely complex, non-linear shapes;
+                    low bias; when there is plenty of data, it extracts
+                    structure a simple model would average away.</td>
+                  <td>Fast and works with small n; interpretable — you can
+                    read coefficients and defend them; resistant to fitting
+                    noise, so results are stable across resamples.</td>
+                </tr>
+                <tr>
+                  <td><strong>Disadvantages</strong></td>
+                  <td>Needs lots of data; high variance — it can overfit
+                    noise and change a lot under a new sample; hard to
+                    explain, so useless when the goal is understanding.</td>
+                  <td>Bias: if the truth is curved, a straight-line model is
+                    wrong the same way every time and more data will not
+                    save it.</td>
+                </tr>
+                <tr>
+                  <td><strong>Prefer</strong></td>
+                  <td>Large n, complex/non-linear relationship, prediction is
+                    the only goal, and you can validate on held-out
+                    data.</td>
+                  <td>Small n, noisy data (large σ²), roughly linear truth,
+                    or the goal is inference — a story a stakeholder can
+                    check.</td>
+                </tr>
+              </tbody>
+            </table>
+            <p>The tie-breaker is always the same: <em>measure</em> which one
+              predicts better on data neither model trained on (section
+              2.2.1, implemented for real in Chapter 5).</p>
+          </div>
+        </details>
+      </div>
+
+      <!-- ---------------------------------------------------- exercise 6 -->
+      <div class="ex" id="ex-6">
+        <div class="ex-head">
+          <span class="ex-id">6</span>
+          <p class="ex-title">Parametric vs non-parametric</p>
+        </div>
+
+        <p>Describe the differences between a parametric and a
+          non-parametric approach. What are the advantages and disadvantages
+          of the parametric one?</p>
+
+        <p class="covers"><b>Covers:</b> section 2.1.2.</p>
+
+        <details class="fold">
+          <summary>Answer</summary>
+          <div class="fold-body">
+            <p><strong>Parametric</strong> methods assume the form of f first
+              (e.g. a straight line, or a polynomial), then estimate the few
+              coefficients that fit it to the data. <strong>Non-parametric</strong>
+              methods commit to no fixed form; they build a flexible surface
+              that stays close to the data (KNN, splines).</p>
+            <table>
+              <thead>
+                <tr><th></th><th>Parametric</th><th>Non-parametric</th></tr>
+              </thead>
+              <tbody>
+                <tr><td><strong>Estimating</strong></td>
+                    <td>A handful of coefficients</td>
+                    <td>Effectively a value at every point of the input
+                      space</td></tr>
+                <tr><td><strong>Advantages</strong></td>
+                    <td>Needs less data; fast; the fit compresses to a short,
+                      readable formula — the coefficients <em>are</em> the
+                      interpretation.</td>
+                    <td>No assumed shape to be wrong about; can capture
+                      arbitrary curves when data allows.</td></tr>
+                <tr><td><strong>Disadvantages</strong></td>
+                    <td>If the chosen shape is wrong, the error is baked in —
+                      bias that more data cannot remove.</td>
+                    <td>Needs much more data; can fit noise (variance); the
+                      result is a surface, not a sentence — hard to
+                      explain.</td></tr>
+              </tbody>
+            </table>
+            <p>Remember the two-step signature of parametric methods: choose
+              a form, then fit coefficients. If you cannot point to those two
+              steps in a method, it is probably non-parametric — the KNN
+              slider on the <a href="2-1-what-is-statistical-learning.html#how">2.1
+              page</a> fits no coefficients at all.</p>
+          </div>
+        </details>
+      </div>
+
+      <!-- ---------------------------------------------------- exercise 7 -->
+      <div class="ex" id="ex-7">
+        <div class="ex-head">
+          <span class="ex-id">7</span>
+          <p class="ex-title">KNN by hand on six rows</p>
+        </div>
+
+        <p>A training set with six observations, three predictors and one
+          qualitative response:</p>
+
+        <table class="ntable">
+          <thead>
+            <tr><th class="corner">Obs.</th><th>X1</th><th>X2</th><th>X3</th><th class="resp">Y</th></tr>
+          </thead>
+          <tbody>
+            <tr><td>1</td><td>0</td><td>3</td><td>0</td><td>Red</td></tr>
+            <tr><td>2</td><td>2</td><td>0</td><td>0</td><td>Red</td></tr>
+            <tr><td>3</td><td>0</td><td>1</td><td>3</td><td>Red</td></tr>
+            <tr><td>4</td><td>0</td><td>1</td><td>2</td><td>Green</td></tr>
+            <tr><td>5</td><td>−1</td><td>0</td><td>1</td><td>Green</td></tr>
+            <tr><td>6</td><td>1</td><td>1</td><td>1</td><td>Red</td></tr>
+          </tbody>
+        </table>
+
+        <p>Predict Y at X1 = X2 = X3 = 0 with K-nearest neighbours:</p>
+        <ol class="ex-letters">
+          <li>Compute the Euclidean distance from each observation to the
+            test point.</li>
+          <li>Prediction with K = 1? Why?</li>
+          <li>Prediction with K = 3? Why?</li>
+          <li>If the Bayes decision boundary here is highly non-linear, would
+            the best K be large or small? Why?</li>
+        </ol>
+
+        <p class="covers"><b>Covers:</b> section 2.2.3 (KNN classifier) and
+          2.1.2 (flexibility).</p>
+
+        <details class="fold">
+          <summary>Answer</summary>
+          <div class="fold-body">
+            <p><strong>(a)</strong> The test point is the origin, so each
+              distance is $\sqrt{X_1^2 + X_2^2 + X_3^2}$:</p>
+            <table>
+              <thead>
+                <tr><th>Obs.</th><th>Calculation</th><th>Distance</th><th>Y</th></tr>
+              </thead>
+              <tbody>
+                <tr><td>1</td><td>$\sqrt{0+9+0}$</td><td>3.00</td><td>Red</td></tr>
+                <tr><td>2</td><td>$\sqrt{4+0+0}$</td><td>2.00</td><td>Red</td></tr>
+                <tr><td>3</td><td>$\sqrt{0+1+9}$</td><td>3.16</td><td>Red</td></tr>
+                <tr><td>4</td><td>$\sqrt{0+1+4}$</td><td>2.24</td><td>Green</td></tr>
+                <tr><td>5</td><td>$\sqrt{1+0+1}$</td><td><strong>1.41</strong></td><td>Green</td></tr>
+                <tr><td>6</td><td>$\sqrt{1+1+1}$</td><td>1.73</td><td>Red</td></tr>
+              </tbody>
+            </table>
+            <p><strong>(b) K = 1 → Green.</strong> The single nearest
+              observation is obs. 5 (distance 1.41), and its label is
+              Green.</p>
+            <p><strong>(c) K = 3 → Red.</strong> The three nearest are obs. 5
+              (1.41, Green), obs. 6 (1.73, Red) and obs. 2 (2.00, Red). That
+              is two Reds to one Green, so the majority vote is Red. Note the
+              nearest neighbour itself voted Green — this is exactly why
+              raising K changes answers, and why it stabilises them.</p>
+            <p><strong>(d) Small K.</strong> A highly non-linear Bayes
+              boundary wiggles a lot over short distances, so the classifier
+              must be allowed to change its mind locally — that means a small
+              neighbourhood. A large K averages over a wide area and produces
+              a nearly smooth, nearly linear boundary, which would cut
+              straight through a wiggly truth (high bias). The usual caveat
+              still applies: too small and you chase noise (high variance) —
+              you want the small K that still beats its neighbours on
+              test data.</p>
+          </div>
+        </details>
+      </div>
+    </section>
+
+    <section id="applied">
+      <h2>Applied (exercises 8–10)</h2>
+
+      <!-- ---------------------------------------------------- exercise 8 -->
+      <div class="ex" id="ex-8">
+        <div class="ex-head">
+          <span class="ex-id">8</span>
+          <p class="ex-title">The College data set</p>
+        </div>
+
+        <p>777 US colleges and universities with 18 recorded variables
+          (private/public, applications, enrolment, top-decile percentages,
+          costs, faculty credentials, graduation rate…). Load it, give it a
+          proper index, summarise it, plot it, and build an <em>Elite</em>
+          flag from Top10perc.</p>
+
+        <p class="covers"><b>Covers:</b> lab 2.3.7 (reading CSVs, indices) and
+          2.3.9 (describe, boxplot, histograms).</p>
+
+        <details class="fold">
+          <summary>Answer</summary>
+          <div class="fold-body">
+            <p><strong>(a–b) Read it, then fix the index.</strong> The first
+              column of the file is the university name, which pandas reads
+              as an ordinary column called <code>Unnamed: 0</code>. Both of
+              the book's routes — <code>index_col=0</code> at read time, or
+              <code>rename</code> + <code>set_index</code> afterwards — give
+              the same frame:</p>
+
+<pre><code>college = pd.read_csv('College.csv')
+college.shape
+college2 = pd.read_csv('College.csv', index_col=0)
+college3 = college.rename({'Unnamed: 0': 'College'}, axis=1)
+college3 = college3.set_index('College')
+college = college3
+print(college2.head(3).iloc[:, :5])</code></pre>
+<pre class="out"><code>shape: (777, 19)
+                             Private  Apps  Accept  Enroll  Top10perc
+Abilene Christian University     Yes  1660    1232     721         23
+Adelphi University               Yes  2186    1924     512         16
+Adrian College                   Yes  1428    1097     336         22</code></pre>
+            <p>The index now holds names; <code>columns</code> starts at
+              <code>Private</code>.</p>
+
+            <p><strong>(c) Numerical summary.</strong> <code>describe()</code>
+              on 17 numeric columns — transposed here so it fits; each row is
+              a variable, each column a statistic:</p>
+
+<pre><code>college.describe().round(2).T</code></pre>
+<pre class="out"><code>             count      mean      std     min     25%     50%      75%      max
+Apps         777.0   3001.64  3870.20    81.0   776.0  1558.0   3624.0  48094.0
+Accept       777.0   2018.80  2451.11    72.0   604.0  1110.0   2424.0  26330.0
+Enroll       777.0    779.97   929.18    35.0   242.0   434.0    902.0   6392.0
+Top10perc    777.0     27.56    17.64     1.0    15.0    23.0     35.0     96.0
+Top25perc    777.0     55.80    19.80     9.0    41.0    54.0     69.0    100.0
+F.Undergrad  777.0   3699.91  4850.42   139.0   992.0  1707.0   4005.0  31643.0
+P.Undergrad  777.0    855.30  1522.43     1.0    95.0   353.0    967.0  21836.0
+Outstate     777.0  10440.67  4023.02  2340.0  7320.0  9990.0  12925.0  21700.0
+Room.Board   777.0   4357.53  1096.70  1780.0  3597.0  4200.0   5050.0   8124.0
+Books        777.0    549.38   165.11    96.0   470.0   500.0    600.0   2340.0
+Personal     777.0   1340.64   677.07   250.0   850.0  1200.0   1700.0   6800.0
+PhD          777.0     72.66    16.33     8.0    62.0    75.0     85.0    103.0
+Terminal     777.0     79.70    14.72    24.0    71.0    82.0     92.0    100.0
+S.F.Ratio    777.0     14.09     3.96     2.5    11.5    13.6     16.5     39.8
+perc.alumni  777.0     22.74    12.39     0.0    13.0    21.0     31.0     64.0
+Expend       777.0   9660.17  5221.77  3186.0  6751.0  8377.0  10830.0  56233.0
+Grad.Rate    777.0     65.46    17.18    10.0    53.0    65.0     78.0    118.0</code></pre>
+            <p>Two things jump out immediately: applications vary enormously
+              (81 to 48,094 — mean far above the median, so a few giants
+              dominate), and the maximum Grad.Rate is 118, which is
+              impossible for a percentage. A real dataset with a real error
+              in it.</p>
+
+            <p><strong>(d) Scatterplot matrix</strong> of the first three
+              requested columns:</p>
+
+<pre><code>fig, ax = subplots(figsize=(7, 7))
+pd.plotting.scatter_matrix(college[['Top10perc', 'Apps', 'Enroll']],
+                           ax=ax);</code></pre>
+
+            <figure class="shot">
+              <img src="assets/img/ch02/college-matrix.png" alt="Scatterplot matrix of Top10perc, Apps and Enroll for 777 colleges">
+              <figcaption>Apps against Enroll is tight and linear at the low
+                end but fans out at the top — big-reach schools convert
+                applications to enrolments less predictably. Top10perc
+                against Apps shows no useful pattern: elite intake and
+                application volume are different things.</figcaption>
+            </figure>
+
+            <p><strong>(e) Outstate tuition by private/public</strong> —
+              left panel:</p>
+
+<pre><code>college.boxplot('Outstate', by='Private');</code></pre>
+
+            <p><strong>(f) The Elite flag.</strong> Bin Top10perc at 50% and
+              count:</p>
+
+<pre><code>college['Elite'] = pd.cut(college['Top10perc'], [0, 50, 100],
+                          labels=['No', 'Yes'])
+college['Elite'].value_counts()</code></pre>
+<pre class="out"><code>Elite
+No     699
+Yes     78</code></pre>
+
+            <div class="callout warn">
+              <p class="callout-title">The bins printed in the book are a
+                typo — read them as prose</p>
+              <p>The exercise text prints
+                <code>pd.cut(..., [0, 0.5, 1])</code>, but Top10perc is a
+                <em>percentage</em> on a 0–100 scale, so those edges sort
+                every row into NaN and you get “no elite universities” — not
+                the answer the prose (“exceeds 50%”) asked for:</p>
+<pre class="out"><code>with the bins printed in the book, [0, 0.5, 1]:
+Top10perc
+NaN    774
+Yes      3
+No       0
+Name: count, dtype: int64</code></pre>
+              <p>Use <code>[0, 50, 100]</code>. The general lesson: when a
+                cut's counts look impossible, check the <em>units</em> of the
+                column against the edges — the same mistake in the opposite
+                direction would silently bin nothing.</p>
+            </div>
+
+            <p>Both requested boxplots, side by side (private/public left,
+              elite right):</p>
+
+            <figure class="shot wide">
+              <img src="assets/img/ch02/college-box.png" alt="Two boxplot panels: out-of-state tuition by private status and by elite status">
+              <figcaption>Private colleges charge markedly more out-of-state
+                tuition than public ones, and elite colleges charge more
+                than non-elite — two splits of the same tuition
+                variable.</figcaption>
+            </figure>
+
+            <p><strong>(g) Histograms</strong> in a 2 × 2 grid (the book
+              suggests <code>plt.subplots(2, 2)</code>):</p>
+
+            <figure class="shot wide">
+              <img src="assets/img/ch02/college-hist.png" alt="Two by two grid of histograms for Apps, Outstate, Grad.Rate and S.F.Ratio">
+              <figcaption>Applications are right-skewed with a long tail;
+                tuition and graduation rate are smoother; the
+                student–faculty ratio sits close to normal around 13–14.</figcaption>
+            </figure>
+
+            <p><strong>(h) What else does exploring show?</strong> A few
+              measured findings to compare yours against:</p>
+
+<pre><code>print('private colleges:', (college['Private'] == 'Yes').sum(), 'of', len(college))
+print('mean Outstate, private: %d' %
+      college.loc[college['Private'] == 'Yes', 'Outstate'].mean())
+print('mean Outstate, public:  %d' %
+      college.loc[college['Private'] == 'No', 'Outstate'].mean())
+print('correlation Grad.Rate vs Expend: %.2f' %
+      college['Grad.Rate'].corr(college['Expend']))
+print('grad rate over 100:',
+      college.loc[college['Grad.Rate'] > 100, ['Grad.Rate']].to_dict('records'))</code></pre>
+<pre class="out"><code>private colleges: 565 of 777
+mean Outstate, private: 11801
+mean Outstate, public:  6813
+correlation Grad.Rate vs Expend: 0.39
+grad rate over 100: [{'Grad.Rate': 118}]</code></pre>
+            <p>In short: two-thirds of the dataset is private; private
+              schools charge about 73% more out-of-state tuition; spending
+              per student and graduation rate move together (r ≈ 0.39); and
+              the out-of-range graduation rate belongs to a single row —
+              worth naming in any report built on this data.</p>
+          </div>
+        </details>
+      </div>
+
+      <!-- ---------------------------------------------------- exercise 9 -->
+      <div class="ex" id="ex-9">
+        <div class="ex-head">
+          <span class="ex-id">9</span>
+          <p class="ex-title">The Auto data set: types, ranges, and what predicts mpg</p>
+        </div>
+
+        <p>With the missing values removed (as in the lab), classify Auto's
+          predictors as quantitative or qualitative; give ranges, means and
+          standard deviations; redo the summary after removing observations
+          10 through 85; then investigate graphically and say which variables
+          might help predict mpg.</p>
+
+        <p class="covers"><b>Covers:</b> lab 2.3.7 and 2.3.9, plus section
+          2.1.5's quantitative/qualitative distinction.</p>
+
+        <details class="fold">
+          <summary>Answer</summary>
+          <div class="fold-body">
+            <p><strong>(a) Variable types.</strong> Run the dtypes to check
+              yourself:</p>
+
+<pre><code>Auto = pd.read_csv('Auto.csv')   # after na_values/dropna, 392 rows
+print(Auto.dtypes)
+print('rows:', len(Auto))</code></pre>
+<pre class="out"><code>mpg             float64
+cylinders         int64
+displacement    float64
+horsepower        int64
+weight            int64
+acceleration    float64
+year              int64
+origin            int64
+name             object
+dtype: object
+rows: 392</code></pre>
+            <p><strong>Quantitative:</strong> mpg, displacement, horsepower,
+              weight, acceleration (and year, if you treat it as a number —
+              it is also defensible as a category, since only 12 distinct
+              years appear). <strong>Qualitative:</strong> cylinders (five
+              distinct values — the lab converts it to a category for exactly
+              this reason), origin (a 1/2/3 code for USA/Europe/Japan, not a
+              quantity), and name (a label). Note the trap: dtype
+              <code>int64</code> does <em>not</em> mean quantitative —
+              origin and cylinders are integers that are really codes.</p>
+
+            <p><strong>(b–c) Ranges, means, standard deviations:</strong></p>
+
+<pre><code>quant = ['mpg', 'displacement', 'horsepower', 'weight', 'acceleration']
+pd.DataFrame({'min': Auto[quant].min(), 'max': Auto[quant].max(),
+              'mean': Auto[quant].mean().round(2),
+              'sd': Auto[quant].std().round(2)})</code></pre>
+<pre class="out"><code>                 min     max     mean      sd
+mpg              9.0    46.6    23.45    7.81
+displacement    68.0   455.0   194.41  104.64
+horsepower      46.0   230.0   104.47   38.49
+weight        1613.0  5140.0  2977.58  849.40
+acceleration     8.0    24.8    15.54    2.76</code></pre>
+
+            <p><strong>(d) Remove observations 10 through 85</strong> (76
+              rows, leaving 316) and repeat:</p>
+
+<pre><code>subset = Auto.drop(index=Auto.index[9:85])
+print('rows removed:', len(Auto) - len(subset), '| rows left:', len(subset))
+# same four statistics on `subset`</code></pre>
+<pre class="out"><code>rows removed: 76 | rows left: 316
+                 min     max     mean      sd
+mpg             11.0    46.6    24.40    7.87
+displacement    68.0   455.0   187.24   99.68
+horsepower      46.0   230.0   100.72   35.71
+weight        1649.0  4997.0  2935.97  811.30
+acceleration     8.5    24.8    15.73    2.69</code></pre>
+            <p>What moved: the minimum mpg rises from 9.0 to 11.0 (you cut
+              out some thirsty early cars), and means shift slightly — but
+              ranges and standard deviations barely budge. Dropping a
+              contiguous block of rows removed a slice of history rather
+              than the extremes of the distributions.</p>
+
+            <p><strong>(e) Graphical investigation:</strong></p>
+
+<pre><code>fig, axes = subplots(1, 5, figsize=(15, 3.4))
+for ax, name in zip(axes, ['displacement', 'horsepower', 'weight',
+                           'acceleration', 'cylinders']):
+    ax.scatter(Auto[name], Auto['mpg'], s=12, alpha=0.6)</code></pre>
+
+            <figure class="shot wide">
+              <img src="assets/img/ch02/auto-mpg.png" alt="Five scatterplots of mpg against displacement, horsepower, weight, acceleration and cylinders">
+              <figcaption>mpg against each candidate predictor: strong,
+                curved, negative relationships for displacement, horsepower
+                and weight; a weaker, noisier one for acceleration; and the
+                cylinders split (3/4/5/6/8) visible as vertical stripes —
+                the categorical version of the same story.</figcaption>
+            </figure>
+
+            <p>The correlations, for a number to go with the picture:</p>
+
+<pre><code>print(Auto[quant + ['cylinders']].corr()['mpg'].round(2).sort_values())</code></pre>
+<pre class="out"><code>weight         -0.83
+displacement   -0.81
+horsepower     -0.78
+cylinders      -0.78
+acceleration    0.42
+mpg             1.00
+Name: mpg, dtype: float64</code></pre>
+
+            <p><strong>(f) Which variables look useful for predicting
+              mpg?</strong> Yes — clearly. Weight (r = −0.83), displacement
+              (−0.81) and horsepower (−0.78) are each strongly negatively
+              associated with mpg: heavier, bigger-engined cars go fewer
+              miles per gallon, and the scatterplots show the relation is
+              curved rather than strictly linear (a warning for Chapter 3's
+              straight-line fits). Cylinders correlates for the same reason
+              — it is a proxy for engine size. Acceleration is associated
+              only weakly and <em>positively</em>, which surprises people:
+              small, weak, light cars accelerate slowly, so the relationship
+              runs through weight rather than standing alone. Any of the
+              first three would earn a place in a first model.</p>
+          </div>
+        </details>
+      </div>
+
+      <!-- ---------------------------------------------------- exercise 10 -->
+      <div class="ex" id="ex-10">
+        <div class="ex-head">
+          <span class="ex-id">10</span>
+          <p class="ex-title">The Boston housing data set</p>
+        </div>
+
+        <p>Load Boston from ISLP, describe its shape and contents, plot the
+          predictors against crime rate, check crime/tax/pupil–teacher
+          extremes, count Charles-river suburbs, find the median
+          pupil–teacher ratio, identify the cheapest suburb and compare it
+          to the ranges, and count large-house suburbs.</p>
+
+        <p class="covers"><b>Covers:</b> lab 2.3.9 (graphical and numerical
+          summaries) and Chapter 1's n/p vocabulary.</p>
+
+        <details class="fold">
+          <summary>Answer</summary>
+          <div class="fold-body">
+            <p><strong>(a–b) Load and describe:</strong></p>
+
+<pre><code>from ISLP import load_data
+Boston = load_data('Boston')
+print('shape:', Boston.shape)
+print(Boston.columns.tolist())</code></pre>
+<pre class="out"><code>shape: (506, 13)
+['crim', 'zn', 'indus', 'chas', 'nox', 'rm', 'age', 'dis', 'rad', 'tax',
+ 'ptratio', 'lstat', 'medv']</code></pre>
+            <p><strong>506 rows</strong> — one per Boston-area suburb (census
+              tract); <strong>13 columns</strong> — 12 predictors plus the
+              response <code>medv</code> (median value of owner-occupied
+              homes, in $1000s). n = 506, p = 12. Columns: per-capita crime
+              rate, proportion of large-lot zoning, industrial share,
+              Charles-river indicator, nitrogen oxide concentration, rooms
+              per dwelling, % of owner units built before 1940, distance to
+              employment centres, highway accessibility index, property tax
+              rate, pupil–teacher ratio, % lower-status population, and
+              median home value. (Older versions carried a 14th column —
+              a census “b” variable — which ISLP has dropped.)</p>
+
+            <p><strong>(c–d) Scatterplots and crime associations:</strong></p>
+
+<pre><code>num = Boston.select_dtypes('number')
+print(num.corr()['crim'].round(2).sort_values(ascending=False))</code></pre>
+<pre class="out"><code>crim       1.00
+rad        0.63
+tax        0.58
+lstat      0.46
+nox        0.42
+indus      0.41
+age        0.35
+ptratio    0.29
+chas      -0.06
+zn        -0.20
+rm        -0.22
+dis       -0.38
+medv      -0.39</code></pre>
+
+            <figure class="shot wide">
+              <img src="assets/img/ch02/boston-crim.png" alt="Four scatterplots of crime rate against rooms, lower-status population, industrial share and age">
+              <figcaption>Crime against four predictors. Almost every
+                relationship is funnel-shaped — crime is near zero for many
+                suburbs and explodes for a few — which is why the
+                correlations above understate how extreme the high-crime
+                end is.</figcaption>
+            </figure>
+
+            <p><strong>The relationships, in words:</strong> crime rises with
+              highway accessibility (rad, 0.63) and tax rate (0.58), with
+              industrial share and pollution, and with the proportion of
+              lower-status residents (0.46); it falls where homes are
+              valuable (medv, −0.39), roomier (rm, −0.22) and farther from
+              jobs (dis, −0.38). The plain reading: crime concentrates in
+              older, industrial, high-tax, low-income tracts with heavy road
+              access. Remember this is <em>association</em> — the inference
+              question of section 2.1.1 — not a causal claim.</p>
+
+            <p><strong>(e) Extremes and ranges:</strong></p>
+
+<pre><code>print('crime rate: min %.2f, median %.2f, max %.2f'
+      % (Boston.crim.min(), Boston.crim.median(), Boston.crim.max()))
+print('tax: values above 500:', [int(v) for v in
+      sorted(Boston.loc[Boston.tax > 500, 'tax'].unique())])
+print('suburbs taxed at 666:', (Boston.tax == 666).sum(), 'of', len(Boston))
+print('pupil-teacher ratio: min %.2f, median %.2f, max %.2f'
+      % (Boston.ptratio.min(), Boston.ptratio.median(), Boston.ptratio.max()))</code></pre>
+<pre class="out"><code>crime rate: min 0.01, median 0.26, max 88.98
+tax: values above 500: [666, 711]
+suburbs taxed at 666: 132 of 506
+pupil-teacher ratio: min 12.60, median 19.05, max 22.00</code></pre>
+            <p>Yes, some suburbs stand out. Crime: median 0.26 but a maximum
+              of 88.98 — a single suburb (the one with rad = 24 and tax =
+              666) sits at more than 300× the median, so “crime rate” needs
+              a log scale to be plotted at all. Tax: two distinct levels
+              above 500, with 132 suburbs taxed at exactly 666 — a
+              clumped, almost categorical distribution, not a smooth one.
+              Pupil–teacher ratio: 12.60 to 22.00, tightly grouped around a
+              median of 19.05 — this is the most “normal-looking” of the
+              three, and its narrow range is why Chapter 2's exercises keep
+              picking it as a summary statistic.</p>
+
+            <p><strong>(f–g) Charles river and median ratio:</strong></p>
+
+<pre><code>print('suburbs bounding the Charles river (chas = 1):', int(Boston.chas.sum()))
+print('median pupil-teacher ratio:', Boston.ptratio.median())</code></pre>
+<pre class="out"><code>suburbs bounding the Charles river (chas = 1): 35
+median pupil-teacher ratio: 19.05</code></pre>
+
+            <p><strong>(h) The cheapest suburb.</strong> Find the row with
+              the smallest medv and compare each of its values to the full
+              range of that predictor:</p>
+
+<pre><code>i = Boston.medv.idxmin()
+row = Boston.loc[i]
+print('lowest median home value:', row.to_dict())
+for name in ['crim', 'zn', 'indus', 'rm', 'lstat']:
+    lo, hi = Boston[name].min(), Boston[name].max()
+    print('%-6s %7.2f  (range %.2f to %.2f)' % (name, row[name], lo, hi))</code></pre>
+<pre class="out"><code>lowest median home value: {'crim': 38.3518, 'zn': 0.0, 'indus': 18.1,
+ 'chas': 0.0, 'nox': 0.693, 'rm': 5.453, 'age': 100.0, 'dis': 1.4896,
+ 'rad': 24.0, 'tax': 666.0, 'ptratio': 20.2, 'lstat': 30.59, 'medv': 5.0}
+
+crim     38.35  (range 0.01 to 88.98)
+zn        0.00  (range 0.00 to 100.00)
+indus    18.10  (range 0.46 to 27.74)
+rm        5.45  (range 3.56 to 8.78)
+lstat    30.59  (range 1.73 to 37.97)</code></pre>
+            <p>Every one of its predictors sits at an adverse extreme: crime
+              in the top 10% of the range, no large-lot zoning at all, heavy
+              industry (18.1 against a 0.46–27.74 range), small houses
+              (5.45 rooms — low in the 3.56–8.78 range), 100% pre-1940
+              housing, the highest highway accessibility, tax 666, and
+              lower-status population near the range maximum (30.59 of
+              37.97). Median home value $5,000 — the bottom of the dataset.
+              The comment writes itself: this suburb is the joint extreme of
+              poverty, age, industry and crime, which is exactly the pattern
+              the correlations in (d) predicted.</p>
+
+            <p><strong>(i) Large-house suburbs:</strong></p>
+
+<pre><code>print('suburbs with more than 7 rooms per dwelling:', int((Boston.rm > 7).sum()))
+print('suburbs with more than 8 rooms per dwelling:', int((Boston.rm > 8).sum()))
+big = Boston[Boston.rm > 8]
+print('the >8-room suburbs: medv median %.1f (whole set %.1f), '
+      'crim median %.3f (whole set %.3f), lstat median %.1f (whole set %.1f)'
+      % (big.medv.median(), Boston.medv.median(),
+         big.crim.median(), Boston.crim.median(),
+         big.lstat.median(), Boston.lstat.median()))</code></pre>
+<pre class="out"><code>suburbs with more than 7 rooms per dwelling: 64
+suburbs with more than 8 rooms per dwelling: 13
+
+the >8-room suburbs: medv median 48.3 (whole set 21.2), crim median 0.520
+(whole set 0.257), lstat median 4.1 (whole set 11.4)</code></pre>
+            <p>64 suburbs average over 7 rooms, and only 13 average over 8 —
+              a small, distinctive group. Comment: those 13 are the rich
+              end of Boston — median home value 48.3 against 21.2 for the
+              whole set (near the dataset's $45,000 top), lower-status
+              population 4.1% versus 11.4%, and crime roughly double the
+              overall median yet still low in absolute terms. Bigger houses
+              track wealth, education and low crime almost perfectly; the
+              relationship with <code>medv</code> is strong enough to be one
+              of the first predictors any model in Chapter 3 will
+              pick.</p>
+          </div>
+        </details>
+      </div>
+    </section>
+
+    <section id="closing">
+      <h2>That is Chapter 2</h2>
+
+      <p>You now have the vocabulary the rest of the book assumes:
+        <em>Y = f(X) + ε</em>, prediction versus inference, parametric versus
+        non-parametric, supervised versus unsupervised, regression versus
+        classification, training versus test error, and the bias–variance
+        trade-off that decides how flexible a model should be — plus enough
+        numpy and pandas to run the labs that demonstrate all of it.</p>
+
+      <div class="callout ok">
+        <p class="callout-title">Next: Chapter 3, linear regression</p>
+        <p>Chapter 3 takes the first method on the map from section 2.1.3 —
+          least squares — and answers the questions it can actually settle:
+          <em>is</em> there a relationship, which predictors matter, how
+          large is the effect, and how precise is the estimate? Everything
+          from 2.2 (test error, overfitting) comes back as soon as you have
+          coefficients to check.</p>
+      </div>
+    </section>
+
+    <footer style="margin-top:64px;font-size:13.5px;color:var(--muted);">
+      <p class="further">Source: ISLP, Section 2.4 (pp. 63–68). Exercise
+        statements are restated here; all code outputs and figures were
+        produced by running the shown blocks (ISLP 0.4.1, pandas 2.3.3,
+        Python 3.10). College.csv comes from the book's website; Boston and
+        Auto ship with the ISLP package.</p>
+      <p>ISLP Plainly — <span data-year>2026</span></p>
+    </footer>
+  </main>
+
+  <!-- ======================= page TOC ======================= -->
+  <details class="page-toc" id="page-toc" open>
+    <summary>On this page</summary>
+    <p class="toc-title">On this page</p>
+    <nav aria-label="Table of contents">
+      <ol></ol>
+    </nav>
+  </details>
+</div>
+
+<div class="scrim" id="scrim"></div>
+
+</body>
+</html>

@@ -1,0 +1,173 @@
+=== q8-load ===
+shape: (777, 19)
+['Unnamed: 0', 'Private', 'Apps', 'Accept'] ...
+
+=== q8-index ===
+                             Private  Apps  Accept  Enroll  Top10perc
+Abilene Christian University     Yes  1660    1232     721         23
+Adelphi University               Yes  2186    1924     512         16
+Adrian College                   Yes  1428    1097     336         22
+
+same rows, same names, now as the index: ['Abilene Christian University', 'Adelphi University']
+
+=== q8-describe ===
+             count      mean      std     min     25%     50%      75%      max
+Apps         777.0   3001.64  3870.20    81.0   776.0  1558.0   3624.0  48094.0
+Accept       777.0   2018.80  2451.11    72.0   604.0  1110.0   2424.0  26330.0
+Enroll       777.0    779.97   929.18    35.0   242.0   434.0    902.0   6392.0
+Top10perc    777.0     27.56    17.64     1.0    15.0    23.0     35.0     96.0
+Top25perc    777.0     55.80    19.80     9.0    41.0    54.0     69.0    100.0
+F.Undergrad  777.0   3699.91  4850.42   139.0   992.0  1707.0   4005.0  31643.0
+P.Undergrad  777.0    855.30  1522.43     1.0    95.0   353.0    967.0  21836.0
+Outstate     777.0  10440.67  4023.02  2340.0  7320.0  9990.0  12925.0  21700.0
+Room.Board   777.0   4357.53  1096.70  1780.0  3597.0  4200.0   5050.0   8124.0
+Books        777.0    549.38   165.11    96.0   470.0   500.0    600.0   2340.0
+Personal     777.0   1340.64   677.07   250.0   850.0  1200.0   1700.0   6800.0
+PhD          777.0     72.66    16.33     8.0    62.0    75.0     85.0    103.0
+Terminal     777.0     79.70    14.72    24.0    71.0    82.0     92.0    100.0
+S.F.Ratio    777.0     14.09     3.96     2.5    11.5    13.6     16.5     39.8
+perc.alumni  777.0     22.74    12.39     0.0    13.0    21.0     31.0     64.0
+Expend       777.0   9660.17  5221.77  3186.0  6751.0  8377.0  10830.0  56233.0
+Grad.Rate    777.0     65.46    17.18    10.0    53.0    65.0     78.0    118.0
+
+=== q8-scatter-matrix ===
+
+--- figure: assets/img/ch02/college-matrix.png
+
+=== q8-box-private ===
+
+=== q8-elite-counts ===
+Elite
+No     699
+Yes     78
+Name: count, dtype: int64
+
+with the bins printed in the book, [0, 0.5, 1]:
+Top10perc
+NaN    774
+Yes      3
+No       0
+Name: count, dtype: int64
+
+=== q8-box-elite ===
+
+--- figure: assets/img/ch02/college-box.png
+
+=== q8-hist ===
+
+--- figure: assets/img/ch02/college-hist.png
+
+=== q8-extra-facts ===
+private colleges: 565 of 777
+mean Outstate, private: 11801
+mean Outstate, public:  6813
+correlation Grad.Rate vs Expend: 0.39
+grad rate over 100: [{'Grad.Rate': 118}]
+median S.F.Ratio: 13.60
+
+=== q9-dtypes ===
+mpg             float64
+cylinders         int64
+displacement    float64
+horsepower        int64
+weight            int64
+acceleration    float64
+year              int64
+origin            int64
+name             object
+dtype: object
+rows: 392
+
+=== q9-summary ===
+                 min     max     mean      sd
+mpg              9.0    46.6    23.45    7.81
+displacement    68.0   455.0   194.41  104.64
+horsepower      46.0   230.0   104.47   38.49
+weight        1613.0  5140.0  2977.58  849.40
+acceleration     8.0    24.8    15.54    2.76
+
+=== q9-subset ===
+rows removed: 76 | rows left: 316
+                 min     max     mean      sd
+mpg             11.0    46.6    24.40    7.87
+displacement    68.0   455.0   187.24   99.68
+horsepower      46.0   230.0   100.72   35.71
+weight        1649.0  4997.0  2935.97  811.30
+acceleration     8.5    24.8    15.73    2.69
+
+=== q9-mpg-corrs ===
+weight         -0.83
+displacement   -0.81
+horsepower     -0.78
+cylinders      -0.78
+acceleration    0.42
+mpg             1.00
+Name: mpg, dtype: float64
+
+=== q9-mpg-plots ===
+
+--- figure: assets/img/ch02/auto-mpg.png
+
+=== q10-load ===
+shape: (506, 13)
+['crim', 'zn', 'indus', 'chas', 'nox', 'rm', 'age', 'dis', 'rad', 'tax', 'ptratio', 'lstat', 'medv']
+crim       float64
+zn         float64
+indus      float64
+chas         int64
+nox        float64
+rm         float64
+age        float64
+dis        float64
+rad          int64
+tax          int64
+ptratio    float64
+lstat      float64
+medv       float64
+
+=== q10-crim-corrs ===
+crim       1.00
+rad        0.63
+tax        0.58
+lstat      0.46
+nox        0.42
+indus      0.41
+age        0.35
+ptratio    0.29
+chas      -0.06
+zn        -0.20
+rm        -0.22
+dis       -0.38
+medv      -0.39
+
+=== q10-extremes ===
+crime rate: min 0.01, median 0.26, max 88.98
+highest crime suburb -> {'crim': 88.9762, 'zn': 0.0, 'indus': 18.1, 'chas': 0.0, 'nox': 0.671, 'rm': 6.968, 'age': 91.9, 'dis': 1.4165, 'rad': 24.0, 'tax': 666.0, 'ptratio': 20.2, 'lstat': 17.21, 'medv': 10.4}
+
+tax: values above 500: [666, 711]
+suburbs taxed at 666: 132 of 506
+pupil-teacher ratio: min 12.60, median 19.05, max 22.00
+
+=== q10-chas ===
+suburbs bounding the Charles river (chas = 1): 35
+median pupil-teacher ratio: 19.05
+
+=== q10-lowest-medv ===
+lowest median home value: {'crim': 38.3518, 'zn': 0.0, 'indus': 18.1, 'chas': 0.0, 'nox': 0.693, 'rm': 5.453, 'age': 100.0, 'dis': 1.4896, 'rad': 24.0, 'tax': 666.0, 'ptratio': 20.2, 'lstat': 30.59, 'medv': 5.0}
+
+crim     38.35  (range 0.01 to 88.98)
+zn        0.00  (range 0.00 to 100.00)
+indus    18.10  (range 0.46 to 27.74)
+rm        5.45  (range 3.56 to 8.78)
+lstat    30.59  (range 1.73 to 37.97)
+
+=== q10-rooms ===
+suburbs with more than 7 rooms per dwelling: 64
+suburbs with more than 8 rooms per dwelling: 13
+
+the >8-room suburbs: medv median 48.3 (whole set 21.2), crim median 0.520 (whole set 0.257), lstat median 4.1 (whole set 11.4)
+
+=== q10-pairs ===
+
+--- figure: assets/img/ch02/boston-crim.png
+

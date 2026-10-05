@@ -690,6 +690,12 @@ td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
   .page-toc ol { columns: 1; }
   .demo-controls { gap: 8px 12px; }
   .ctrl input[type="range"] { width: 100px; }
+  /* long readouts wrap instead of being clipped by the figure */
+  .ro { white-space: normal; max-width: 100%; }
+  /* control groups wrap their buttons onto extra lines instead of overflowing */
+  .ctrl { flex-wrap: wrap; white-space: normal; }
+  /* wide tables scroll sideways instead of widening the page */
+  table { display: block; overflow-x: auto; }
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -877,6 +883,10 @@ table.schedule tr.built:hover { background: var(--surface); }
 }
 .ex .covers b { color: var(--text); }
 
+/* lettered sub-questions: (a) (b) (c) */
+.ex ol.ex-letters { list-style: lower-alpha; padding-left: 24px; }
+.ex ol.ex-letters > li { margin: 5px 0; }
+
 /* folded answer guides / hints */
 details.fold {
   border: 1px solid var(--border);
@@ -1052,3 +1062,41 @@ details.fold.hints > summary { color: var(--ok); }
 .nsay-sym .katex { font-size: 1.5em; color: var(--accent); }
 .nsay-plain { margin: 0; font-size: 15.5px; color: var(--muted); }
 .nsay-plain strong { color: var(--text); }
+
+/* ---- captured console output (lab pages) -------------------------------- */
+pre.out {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--accent);
+  color: var(--muted);
+}
+pre.out code { color: inherit; }
+
+/* ---- still figures produced by the labs / exercises --------------------- */
+figure.shot { margin: 4px 0 20px; }
+figure.shot img {
+  display: block;
+  width: 100%;
+  max-width: 560px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: #fff;
+}
+figure.shot.wide img { max-width: 720px; }
+figure.shot figcaption { margin-top: 9px; max-width: 720px; }
+
+/* side-by-side stills */
+.shotrow {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 16px;
+  margin: 4px 0 20px;
+}
+.shotrow figure { margin: 0; }
+.shotrow img {
+  display: block;
+  width: 100%;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: #fff;
+}

@@ -17,7 +17,12 @@
 
   var CHAPTERS = [
     { n: 1, title: 'Introduction', read: 'pp. 1–14', href: '1-introduction.html', sections: [] },
-    { n: 2, title: 'Statistical learning', read: 'pp. 15–68', sections: [] },
+    { n: 2, title: 'Statistical learning', read: 'pp. 15–68', sections: [
+      { href: '2-1-what-is-statistical-learning.html', num: '2.1', label: 'What is statistical learning?' },
+      { href: '2-2-assessing-model-accuracy.html', num: '2.2', label: 'Assessing model accuracy' },
+      { href: '2-3-lab-introduction-to-python.html', num: '2.3', label: 'Lab: introduction to Python' },
+      { href: '2-4-exercises.html', num: '2.4', label: 'Exercises' }
+    ] },
     { n: 3, title: 'Linear regression', read: 'pp. 69–134', sections: [] },
     { n: 4, title: 'Classification', read: 'pp. 135–200', sections: [] },
     { n: 5, title: 'Resampling methods', read: 'pp. 201–228', sections: [] },
