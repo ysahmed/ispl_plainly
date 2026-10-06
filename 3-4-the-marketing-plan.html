@@ -1,0 +1,236 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>3.4 · The marketing plan — ISLP Plainly</title>
+<meta name="description" content="ISLP section 3.4 in plain language: the chapter's seven questions about the Advertising data, answered one at a time with the exact statistic that answers each — F-test, RSE, R², p-values, confidence intervals, prediction intervals, residual plots and the TV × radio interaction. One demo recomputes every answer live.">
+<link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css">
+<link rel="stylesheet" href="assets/css/style.css">
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/contrib/auto-render.min.js"></script>
+<script defer src="assets/js/plots.js"></script>
+<script defer src="assets/js/nav.js"></script>
+<script defer src="assets/data/ch03-data.js"></script>
+<script defer src="assets/js/stats.js"></script>
+<script defer src="assets/js/demos/market-qa.js"></script>
+<script defer src="assets/js/common.js"></script>
+</head>
+<body>
+
+<a class="skip-link" href="#main">Skip to content</a>
+
+<header class="topbar">
+  <button class="icon-btn" data-sidebar-toggle aria-label="Open navigation menu" aria-controls="sidebar">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 6h16M4 12h16M4 18h16"/></svg>
+  </button>
+  <span class="topbar-title">3.4 · The marketing plan</span>
+</header>
+
+<div class="app">
+
+  <!-- ======================= sidebar ======================= -->
+  <aside class="sidebar" id="sidebar">
+    <div class="brand">
+      <span class="logo">∑</span>
+      <a href="index.html">ISLP Plainly</a>
+    </div>
+
+    <nav class="side-nav" aria-label="Site navigation"></nav>
+
+    <div class="side-foot">
+      <button class="theme-btn" data-theme-toggle type="button">
+        <svg class="sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2m0 16v2M4.9 4.9l1.4 1.4m11.4 11.4 1.4 1.4M2 12h2m16 0h2M4.9 19.1l-1.4 1.4m11.4-11.4 1.4-1.4"/></svg>
+        <svg class="moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg>
+        <span class="theme-label">Dark mode</span>
+      </button>
+    </div>
+  </aside>
+
+  <!-- ======================= main ======================= -->
+  <main id="main">
+
+    <div class="page-head">
+      <p class="eyebrow">Chapter 3 · section 3.4 · book pages 109–111</p>
+      <h1>The marketing plan</h1>
+      <p class="lede">Two pages, seven questions, no new machinery. The
+        chapter opened by asking what a marketing manager would need to know
+        before spending next year's budget — and this section collects every
+        tool of Sections 3.1–3.3 and points it at those questions. It is the
+        clearest demonstration in the book that a regression is not a number
+        you compute once; it is a set of questions you ask in order.</p>
+    </div>
+
+    <section id="reading">
+      <h2>Reading</h2>
+      <ul class="reading">
+        <li><span class="r-label">Read</span>
+          <span class="r-body">Section 3.4 in full (pp. 109–111). Read it as a
+            checklist: for each question, ask yourself <em>which statistic
+            answers this</em> before reading the book's answer.</span></li>
+        <li><span class="r-label">Skim</span>
+          <span class="r-body">Nothing — this section is the skim. It
+            references Sections 3.1.2, 3.1.3, 3.2.2 and 3.3 without repeating
+            them, so if any answer is unfamiliar, that is the gap to go back
+            and fill.</span></li>
+        <li><span class="r-label">Then</span>
+          <span class="r-body">Section 3.5 changes the subject entirely: what
+            if you stop assuming a shape for the relationship at all?</span></li>
+      </ul>
+
+      <div class="keybox">
+        <p class="keybox-title">Key ideas</p>
+        <p>Each of the seven questions maps to exactly one tool: is there
+          relationship → <strong>F-test</strong>; how strong →
+          <strong>RSE and R²</strong>; which media → <strong>t-test
+          p-values</strong>; how large → <strong>confidence intervals</strong>;
+          how accurately can we predict → <strong>confidence interval vs
+          prediction interval</strong>; is it linear → <strong>residual
+          plot</strong>; is there synergy → <strong>the interaction term's
+          p-value and the jump in R²</strong>. Three predictors, one model,
+          seven distinct questions — and nothing outside Sections
+          3.1–3.3 was needed to answer any of them.</p>
+      </div>
+
+      <h3>What you will know afterwards</h3>
+      <ul class="chips">
+        <li class="chip">which test answers which business question</li>
+        <li class="chip">RSE 1.69 vs mean 14.022 → ~12% error</li>
+        <li class="chip">newspaper: insignificant, not necessarily useless</li>
+        <li class="chip">confidence vs prediction, one last time</li>
+        <li class="chip">90% → 97% of variance from one interaction term</li>
+      </ul>
+    </section>
+
+    <section id="questions">
+      <h2>1. The seven questions, answered</h2>
+
+      <p>The questions were set out at the end of Section 2.3.3, at the very
+        start of the chapter. Press a button below and the demo refits the
+        model and redraws the evidence for that particular question — the
+        readout underneath gives the book's number, recomputed from
+        <code>Advertising.csv</code> in your browser.</p>
+
+      <figure class="demo" id="demo-market">
+        <div class="demo-body"><canvas id="cv-market"></canvas></div>
+        <div class="demo-controls">
+          <button class="btn" id="mq-q1" type="button" data-mq="1" aria-pressed="true">1 · Any relationship?</button>
+          <button class="btn" id="mq-q2" type="button" data-mq="2" aria-pressed="false">2 · How strong?</button>
+          <button class="btn" id="mq-q3" type="button" data-mq="3" aria-pressed="false">3 · Which media?</button>
+          <button class="btn" id="mq-q4" type="button" data-mq="4" aria-pressed="false">4 · How large?</button>
+          <button class="btn" id="mq-q5" type="button" data-mq="5" aria-pressed="false">5 · How accurately?</button>
+          <button class="btn" id="mq-q6" type="button" data-mq="6" aria-pressed="false">6 · Is it linear?</button>
+          <button class="btn" id="mq-q7" type="button" data-mq="7" aria-pressed="false">7 · Synergy?</button>
+        </div>
+        <div class="keybox" style="margin:0 16px 14px;">
+          <p class="keybox-title" id="mq-question">1. Is there a relationship between advertising budget and sales?</p>
+          <p id="mq-answer">—</p>
+          <p id="mq-stat" style="font-family:var(--mono);font-size:12.5px;color:var(--muted);">—</p>
+        </div>
+        <figcaption><strong>Play with it:</strong> each button changes both
+          the <em>answer</em> and the <em>picture</em>. Questions 1, 3, 4 and
+          7 show every coefficient as a horizontal bar measured in its own
+          standard errors — the shaded strip is the "could easily be zero"
+          zone (|t| &lt; 1.96), and newspaper is the only term that fails to
+          escape it. Question 2 switches to a variance picture: one bar split
+          into the 89.7% the budgets explain and the 10.3% they do not, with
+          RSE drawn to the same scale. Question 5 shows the two bands around
+          the fit. Question 6 shows the residual plot with the dark trend
+          line, where the book's Figure 3.5 bend shows up as a dip. Question
+          7 refits with the TV × radio term included and the whole set of
+          bars redraws — that one bar is the marketing lesson of the
+          chapter.</figcaption>
+      </figure>
+    </section>
+
+    <section id="takeaways">
+      <h2>2. What you would actually tell the client</h2>
+
+      <p>Strip the notation and the seven answers collapse into four
+        sentences:</p>
+
+      <ul>
+        <li><strong>Yes, advertising moves sales</strong> — the F-test is
+          overwhelming (F = 570, p far below 0.001). Nobody needed statistics
+          to believe this; the point is that the model can say it formally,
+          which is what licenses everything that follows.</li>
+        <li><strong>TV and radio are the two that carry it.</strong> Their
+          p-values are both below 0.0001 and their confidence intervals —
+          (0.043, 0.049) for TV and (0.172, 0.206) for radio — are narrow and
+          nowhere near zero. Newspaper's is (−0.013, 0.011), straddling it,
+          and its VIF of 1.145 says the problem is <em>not</em> collinearity:
+          newspaper simply does not add anything once TV and radio are in the
+          model. Judged alone (Table 3.3) it looked mildly useful — a
+          reminder that "unrelated given the others" and "unrelated" are
+          different claims.</li>
+        <li><strong>The fit is good, and about 12% wrong.</strong> R² = 0.897
+          (the budgets explain almost 90% of the variation in sales) and RSE
+          = 1.69 against a mean sale of 14.022 — a typical miss of 12%. For a
+          planning model that is respectable; it is not precision.</li>
+        <li><strong>Spend jointly, not separately.</strong> TV and radio
+          reinforce each other: the interaction term has a small p-value and
+          pushes R² from around 90% to almost 97%, meaning most of the
+          structure the additive model was missing was exactly that
+          interaction. Additive models are easy to interpret — and easy to
+          be wrong with.</li>
+      </ul>
+
+      <div class="callout">
+        <p class="callout-title">The pattern worth remembering</p>
+        <p>Every answer used machinery from Sections 3.1–3.3, and not one of
+          them needed a new technique. Question 1 used the F-test, questions
+          2–4 used RSE/R² and t-tests, question 5 used the two intervals,
+          question 6 used the residual plot, question 7 used an interaction
+          term. If you can name which tool answers a given question, you have
+          understood Chapter 3 — the algebra was only ever the delivery
+          mechanism.</p>
+      </div>
+
+      <table>
+        <thead>
+          <tr><th>Question</th><th>Tool</th><th>Answer for the Advertising data</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>1. Relationship?</td><td>F-test</td><td>F = 570, p &lt; 0.001 — yes</td></tr>
+          <tr><td>2. How strong?</td><td>RSE, R²</td><td>1.69 (≈12% of 14.022), R² = 0.897</td></tr>
+          <tr><td>3. Which media?</td><td>t p-values</td><td>TV and radio; newspaper not</td></tr>
+          <tr><td>4. How large?</td><td>confidence intervals</td><td>TV (0.043, 0.049) · radio (0.172, 0.206)</td></tr>
+          <tr><td>5. How accurately?</td><td>CI vs PI</td><td>prediction interval is wider — it carries ε</td></tr>
+          <tr><td>6. Linear?</td><td>residual plot</td><td>a pattern in Figure 3.5 — use transformations</td></tr>
+          <tr><td>7. Synergy?</td><td>interaction term</td><td>R² ≈ 90% → almost 97%</td></tr>
+        </tbody>
+      </table>
+
+      <div class="callout ok">
+        <p class="callout-title">Section 3.4 in one line</p>
+        <p>Seven questions, seven statistics, one model: the whole value of
+          linear regression is that you can hold it up against a business
+          question and it gives you an answer you can check.</p>
+      </div>
+    </section>
+
+    <footer style="margin-top:64px;font-size:13.5px;color:var(--muted);">
+      <p class="further">Source: ISLP, Section 3.4 (pp. 109–111). Every number
+        quoted here is either the book's own (Tables 3.1, 3.3, 3.4, 3.6) or
+        recomputed live from <code>Advertising.csv</code> — the F-statistic,
+        RSE, R², p-values, confidence intervals and the interaction model are
+        refitted in your browser each time you press a question button.</p>
+      <p>ISLP Plainly — <span data-year>2026</span></p>
+    </footer>
+  </main>
+
+  <!-- ======================= page TOC ======================= -->
+  <details class="page-toc" id="page-toc" open>
+    <summary>On this page</summary>
+    <p class="toc-title">On this page</p>
+    <nav aria-label="Table of contents">
+      <ol></ol>
+    </nav>
+  </details>
+</div>
+
+<div class="scrim" id="scrim"></div>
+
+</body>
+</html>

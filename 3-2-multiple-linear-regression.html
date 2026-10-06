@@ -1,0 +1,386 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>3.2 · Multiple linear regression — ISLP Plainly</title>
+<meta name="description" content="ISLP section 3.2 in plain language: one model with three coefficients, what 'holding the others fixed' means, why newspaper looks useful alone and useless together, the F-statistic, and the difference between a confidence interval and a prediction interval. Three live demos refitting the book's Advertising model.">
+<link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css">
+<link rel="stylesheet" href="assets/css/style.css">
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/contrib/auto-render.min.js"></script>
+<script defer src="assets/js/plots.js"></script>
+<script defer src="assets/js/nav.js"></script>
+<script defer src="assets/data/ch03-data.js"></script>
+<script defer src="assets/js/stats.js"></script>
+<script defer src="assets/js/demos/rss-contour.js"></script>
+<script defer src="assets/js/demos/coef-toggle.js"></script>
+<script defer src="assets/js/demos/lin-intervals.js"></script>
+<script defer src="assets/js/common.js"></script>
+</head>
+<body>
+
+<a class="skip-link" href="#main">Skip to content</a>
+
+<header class="topbar">
+  <button class="icon-btn" data-sidebar-toggle aria-label="Open navigation menu" aria-controls="sidebar">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 6h16M4 12h16M4 18h16"/></svg>
+  </button>
+  <span class="topbar-title">3.2 · Multiple linear regression</span>
+</header>
+
+<div class="app">
+
+  <!-- ======================= sidebar ======================= -->
+  <aside class="sidebar" id="sidebar">
+    <div class="brand">
+      <span class="logo">∑</span>
+      <a href="index.html">ISLP Plainly</a>
+    </div>
+
+    <nav class="side-nav" aria-label="Site navigation"></nav>
+
+    <div class="side-foot">
+      <button class="theme-btn" data-theme-toggle type="button">
+        <svg class="sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2m0 16v2M4.9 4.9l1.4 1.4m11.4 11.4 1.4 1.4M2 12h2m16 0h2M4.9 19.1l-1.4 1.4m11.4-11.4 1.4-1.4"/></svg>
+        <svg class="moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg>
+        <span class="theme-label">Dark mode</span>
+      </button>
+    </div>
+  </aside>
+
+  <!-- ======================= main ======================= -->
+  <main id="main">
+
+    <div class="page-head">
+      <p class="eyebrow">Chapter 3 · section 3.2 · book pages 80–91</p>
+      <h1>Multiple linear regression</h1>
+      <p class="lede">Three advertising budgets, one model, three
+        coefficients. This section is where the book stops talking about
+        "the relationship between x and y" and starts talking about
+        <em>this</em> predictor's relationship with y <em>after holding the
+        others fixed</em> — a phrase that carries almost all of the meaning in
+        multiple regression, and the reason newspaper flips from useful to
+        useless mid-section.</p>
+    </div>
+
+    <section id="reading">
+      <h2>Reading</h2>
+      <ul class="reading">
+        <li><span class="r-label">Read</span>
+          <span class="r-body">Section 3.2 in full (pp. 80–91). The four
+            numbered questions in 3.2.2 are the checklist every regression
+            analysis runs through; memorise the list, not the algebra.</span></li>
+        <li><span class="r-label">Skim</span>
+          <span class="r-body">Forward, backward and mixed variable
+            selection. Know what they do and why 2<sup>p</sup> makes them
+            necessary; the clever versions arrive in Chapter 6.</span></li>
+        <li><span class="r-label">Then</span>
+          <span class="r-body">Section 3.3 asks what happens when the
+            predictors are categories, when the relationship bends, and when
+            the assumptions underneath all of this quietly fail.</span></li>
+      </ul>
+
+      <div class="keybox">
+        <p class="keybox-title">Key ideas</p>
+        <p>A multiple regression coefficient means <em>the change in y for a
+          one-unit change in this predictor, holding every other predictor
+          fixed</em>. Run the media separately and newspaper looks like it
+          sells things (p = 0.00115); run them together and it does nothing
+          (p = 0.86), because it was riding on radio's coattails. The F-test
+          asks whether <strong>anything</strong> is related — one number that
+          does not inflate with more predictors — while the individual
+          t-tests say which. And a confidence interval about an <em>average</em>
+          is always narrower than a prediction interval about <em>one real
+          outcome</em>, because only the second has to absorb the noise.</p>
+      </div>
+
+      <h3>What you will know afterwards</h3>
+      <ul class="chips">
+        <li class="chip">β_j: "holding the others fixed"</li>
+        <li class="chip">the least-squares surface and its floor</li>
+        <li class="chip">simple vs multiple coefficients (surrogates)</li>
+        <li class="chip">F-statistic vs individual t-statistics</li>
+        <li class="chip">R² never falls; adjusted R² might</li>
+        <li class="chip">confidence interval vs prediction interval</li>
+      </ul>
+    </section>
+
+    <section id="multiple">
+      <h2>1. One equation, one slope per predictor (3.2.1)</h2>
+
+      <p>Give every predictor its own coefficient and the model grows up
+        without changing character:</p>
+
+      $$Y = \beta_0 + \beta_1 X_1 + \beta_2 X_2 + \cdots + \beta_p X_p + \varepsilon$$
+
+      <p>For the Advertising data that is
+        <code>sales = β₀ + β₁·TV + β₂·radio + β₃·newspaper + ε</code>. The
+        interpretation of β<sub>j</sub> gains the two words that do all the
+        work: <strong>holding all other predictors fixed</strong>. β̂₂ = 0.189
+        says: spend an extra <span class="usd">$</span>1,000 on radio <em>while keeping the TV and
+        newspaper budgets the same</em>, and sales rise by about 189 units.
+        With two predictors the "line" is a plane (Figure 3.4), and with three
+        it is a hyperplane — the point is that least squares still just
+        minimises the same RSS over more coefficients.</p>
+
+      <p>The book declines to write the multiple-regression estimates out,
+        because they need matrix algebra: β̂ = (XᵀX)⁻¹Xᵀy. What matters is the
+        <em>landscape</em>: with one coefficient there was a parabola, with
+        two there is a bowl-shaped surface whose floor sits at the least
+        squares answer. Drag yourself around it:</p>
+
+      <figure class="demo" id="demo-contour">
+        <div class="demo-body"><canvas id="cv-contour"></canvas></div>
+        <div class="demo-controls">
+          <span class="ctrl">
+            <label for="rc-b0">intercept β₀</label>
+            <input type="range" id="rc-b0" min="-2" max="14" step="0.1" value="13">
+          </span>
+          <span class="ctrl">
+            <label for="rc-b1">slope β₁</label>
+            <input type="range" id="rc-b1" min="-0.02" max="0.12" step="0.001" value="-0.01">
+          </span>
+          <button class="btn" id="rc-descend" type="button" aria-pressed="false">Descend</button>
+          <span class="ro" id="rc-rss">RSS = …</span>
+          <span class="ro" id="rc-steps">sweeps: 0</span>
+          <span class="ro" id="rc-best">bottom: …</span>
+        </div>
+        <figcaption><strong>Play with it:</strong> every pixel is a possible
+          (β₀, β₁) pair for <code>sales ~ TV</code>, coloured by its RSS —
+          pale pink is the valley floor, deep red is a terrible line. The
+          stepped colour bands and the nested rings are contour lines of
+          equal RSS, exactly like the book's Figure 3.2 (and Figure 3.15,
+          where collinearity stretches the same bowl into a long valley —
+          Section 3.3.3). Move either slider and the readout tells you how
+          many times worse than optimal you are standing. Press
+          <em>descend</em> to run coordinate descent from your position: one
+          sweep takes the best β₀ for your β₁, then the best β₁ for that β₀,
+          and the two markers walk to the bottom — which is where every
+          regression package ends up.</figcaption>
+      </figure>
+    </section>
+
+    <section id="why-one">
+      <h2>2. Why not just run three separate regressions?</h2>
+
+      <p>Because you would get three incompatible answers. Table 3.3 fits
+        each medium on its own: TV +0.0475, radio +0.203, newspaper
+        <strong>+0.055 (t = 3.30, p = 0.00115)</strong> — the newspaper
+        coefficient clears the 1% bar, so a casual analyst would conclude
+        newspaper advertising works. Put all three in one model (Table 3.4)
+        and newspaper becomes <strong>−0.001 with p = 0.86</strong>: not
+        merely insignificant, but signed backwards.</p>
+
+      <table>
+        <thead>
+          <tr><th>Term</th><th>Coefficient</th><th>Std. error</th><th>t-statistic</th><th>p-value</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>intercept</td><td>2.939</td><td>0.3119</td><td>9.42</td><td>&lt; 0.0001</td></tr>
+          <tr><td>TV</td><td>0.046</td><td>0.0014</td><td>32.81</td><td>&lt; 0.0001</td></tr>
+          <tr><td>radio</td><td>0.189</td><td>0.0086</td><td>21.89</td><td>&lt; 0.0001</td></tr>
+          <tr><td>newspaper</td><td>−0.001</td><td>0.0059</td><td>−0.18</td><td>0.8599</td></tr>
+        </tbody>
+      </table>
+
+      <p>Both results are right; they answer different questions. The simple
+        fit asks "do markets that spend more on newspaper sell more?" — and
+        they do, because those markets also spend more on radio (correlation
+        0.35 in Table 3.5). The multiple fit asks "holding TV and radio
+        fixed, does newspaper help?" — and it does not. Newspaper was a
+        <strong>surrogate</strong> for radio, taking credit for someone
+        else's effect. The book's absurd version: shark attacks correlate
+        with ice cream sales until you control for temperature. Switch
+        predictors off and watch it happen to real data:</p>
+
+      <figure class="demo" id="demo-coef">
+        <div class="demo-body"><canvas id="cv-coef"></canvas></div>
+        <div class="demo-controls">
+          <button class="btn" id="c-tv" type="button" aria-pressed="true">TV</button>
+          <button class="btn" id="c-radio" type="button" aria-pressed="true">radio</button>
+          <button class="btn" id="c-news" type="button" aria-pressed="true">newspaper</button>
+          <span class="ro" id="coef-r2">R² = …</span>
+          <span class="ro" id="coef-adjr2">adj R² = …</span>
+          <span class="ro" id="coef-rse">RSE = …</span>
+          <span class="ro" id="coef-f">F = …</span>
+          <span class="ro" id="coef-pred">prediction = …</span>
+          <span class="ro" id="coef-note">note: …</span>
+        </div>
+        <div class="demo-body" style="padding-top:0;">
+          <table>
+            <thead>
+              <tr><th>Term</th><th>Coefficient</th><th>Std. error</th><th>t</th><th>p</th></tr>
+            </thead>
+            <tbody id="coef-body"></tbody>
+          </table>
+        </div>
+        <figcaption><strong>Play with it:</strong> each button is a re-fit.
+          The line shows what the current model says about sales as
+          the TV budget moves, with radio and newspaper held at 25 and 20 —
+          switch TV off and the line goes flat, because a model without TV
+          has no opinion about TV. The table is live: standard errors, t and
+          p are recomputed from the points you see. Turn newspaper off and
+          R² barely notices: 0.89721 with newspaper, 0.89719 without — three
+          digits in the fourth decimal place. That vanishing gain is the
+          section's punchline: R² can only go <em>up</em> when you add a
+          variable, so a gain that small is evidence for dropping it.
+          Adjusted R², which charges rent for each extra variable, is the
+          readout that notices.</figcaption>
+      </figure>
+
+      <div class="callout">
+        <p class="callout-title">"Holding fixed" is a modelling claim</p>
+        <p>You are not running an experiment; you are asserting that the
+          model correctly represents how the predictors combine. If TV and
+          radio interact (Section 3.3.2), then "the effect of TV, holding
+          radio fixed" is not a single number at all — it depends on radio.
+          The coefficient is always computable; whether it means what you
+          think it means is the judgement part.</p>
+      </div>
+    </section>
+
+    <section id="f-test">
+      <h2>3. Questions one and two: anything there, and what (3.2.2)</h2>
+
+      <p><strong>Question 1 — is anything related?</strong> With p predictors
+        the null hypothesis is a bundle: β₁ = β₂ = ⋯ = β<sub>p</sub> = 0.
+        The tool is the <strong>F-statistic</strong>, a ratio of two
+        averages:</p>
+
+      $$F = \frac{(\mathrm{TSS} - \mathrm{RSS})/p}{\mathrm{RSS}/(n - p - 1)}$$
+
+      <p>Read it as <em>variance explained per predictor ÷ variance left
+        over per leftover degree of freedom</em>. If nothing is related, the
+        two averages are both estimates of σ² and the ratio sits near 1. For
+        the Advertising model F = <strong>570</strong> with a p-value
+        essentially zero — overwhelming evidence that at least one medium is
+        associated with sales. Note what F does <em>not</em> do: it does not
+        get easier to impress as you add junk predictors, because the top of
+        the fraction is divided by p.</p>
+
+      <p><strong>Question 2 — which ones?</strong> The individual t-statistics
+        in Table 3.4 answer "does this predictor help, given the others are
+        already in?" — each one is exactly the F-test for dropping that one
+        variable (t² = F for one degree of freedom). But the book warns twice
+        about the trap: with 100 useless predictors, about five p-values land
+        below 0.05 <em>by chance</em>, so "at least one is significant" tells
+        you nothing unless you asked the F question first. When p grows,
+        stop reading individual p-values and start selecting variables:
+        forward (add whatever cuts RSS most), backward (drop whatever has the
+        largest p-value), or mixed (both, until everything left is
+        significant and everything out is not). All 2<sup>p</sup> subsets
+        would be exhaustive — and for p = 30 that is over a billion models.</p>
+
+      <div class="callout">
+        <p class="callout-title">A significant F and non-significant
+          predictors is a normal result</p>
+        <p>It means the predictors are jointly useful but you cannot
+          currently tell which of them is carrying the load — often because
+          they are correlated with each other (Section 3.3.3, collinearity)
+          or because there simply is not enough data to separate them. The
+          honest response is not "declare no effect"; it is "collect more
+          data or simplify the model".</p>
+      </div>
+    </section>
+
+    <section id="fit">
+      <h2>4. Questions three and four: how good, and what do we predict</h2>
+
+      <p><strong>Question 3 — fit.</strong> RSE and R² mean exactly what they
+        meant in Section 3.1, computed the same way. Table 3.6 for the full
+        model: <strong>RSE 1.69, R² 0.897, F 570</strong>. Compare with
+        sales ~ TV alone (RSE 3.26, R² 0.612): adding radio nearly halves
+        the typical miss. Two subtleties the section points out:</p>
+
+      <ul>
+        <li><strong>R² never decreases</strong> when you add a variable —
+          RSS can only fall, because the old model is still available to the
+          optimiser. So a tiny increase (0.89719 → 0.89721 for newspaper) is
+          information: the new variable bought nothing.</li>
+        <li><strong>RSE can increase.</strong> RSE divides by n − p − 1, so
+          if the RSS gain is smaller than the cost of the extra coefficient,
+          RSE goes <em>up</em>: TV+radio gives 1.681, all three gives 1.686.
+          RSE charges for complexity; R² does not.</li>
+      </ul>
+
+      <p>Numerical summaries also hide shape. Figure 3.5 plots the fit and
+        shows it systematically overshooting markets that put everything
+        into one medium and undershooting markets that split the budget —
+        the additive model has no way to say "TV and radio together are worth
+        more than the sum of the parts". Remember that pattern; Section 3.3.2
+        fixes it with one multiplied term.</p>
+
+      <p><strong>Question 4 — prediction.</strong> Plugging values into
+        ŷ = β̂₀ + β̂₁x₁ + ⋯ is easy. The hard part is naming your uncertainty,
+        and the book counts three sources: the coefficients are estimated
+        (reducible — a confidence interval), the linear form is an
+        approximation (reducible — model bias), and the noise ε is
+        irreducible (only a prediction interval absorbs it). The example:
+        spend <span class="usd">$</span>100,000 on TV and <span class="usd">$</span>20,000 on radio in a city and the average
+        sales across many such cities is in <strong>[10,985, 11,528]</strong>
+        — while sales in <em>this</em> city are in
+        <strong>[7,930, 14,580]</strong>. Same centre (11,256), radically
+        different width.</p>
+
+      <figure class="demo" id="demo-int">
+        <div class="demo-body"><canvas id="cv-int"></canvas></div>
+        <div class="demo-controls">
+          <span class="ctrl">
+            <label for="int-x0">TV budget</label>
+            <input type="range" id="int-x0" min="0" max="300" step="5" value="150">
+          </span>
+          <button class="btn" id="int-ci" type="button" aria-pressed="true">Confidence band</button>
+          <button class="btn" id="int-pi" type="button" aria-pressed="true">Prediction band</button>
+          <span class="ro" id="int-xval">TV = …</span>
+          <span class="ro" id="int-pred">predicted sales = …</span>
+          <span class="ro" id="int-ciw">CI ± …</span>
+          <span class="ro" id="int-piw">PI ± …</span>
+        </div>
+        <figcaption><strong>Play with it:</strong> sales on TV, with both
+          bands drawn to their true widths — the narrow blue is where the
+          <em>average</em> response sits (confidence), the wide red is where
+          <em>one real market</em> will land (prediction). Drag the slider or
+          the pointer across the plot: both bands pinch together in the
+          middle of the data, where the line is well anchored, and flare out
+          at the edges — and the prediction band stays wider everywhere,
+          because it is the only one that includes the ε you cannot get rid
+          of. Rule of thumb from the readouts: PI ≈ √(CI² + RSE²) plus a
+          little, and it never gets narrower than RSE itself.</figcaption>
+      </figure>
+
+      <div class="callout ok">
+        <p class="callout-title">Section 3.2 in one line</p>
+        <p>One model, one "holding the others fixed" reading per
+          coefficient; an F-test for "is any of this real" before you go
+          reading individual p-values; R² that always rises so let adjusted
+          R² and RSE judge the fit; and two intervals — the narrow one about
+          an average, the wide one about one actual outcome.</p>
+      </div>
+    </section>
+
+    <footer style="margin-top:64px;font-size:13.5px;color:var(--muted);">
+      <p class="further">Source: ISLP, Section 3.2 (pp. 80–91). The contour
+        map, the coefficient table, the fit statistics and both bands are
+        computed in the browser from <code>Advertising.csv</code> — the
+        readouts reproduce Tables 3.4 and 3.6 and the standard errors behind
+        them, so switching a predictor off really does refit the model.</p>
+      <p>ISLP Plainly — <span data-year>2026</span></p>
+    </footer>
+  </main>
+
+  <!-- ======================= page TOC ======================= -->
+  <details class="page-toc" id="page-toc" open>
+    <summary>On this page</summary>
+    <p class="toc-title">On this page</p>
+    <nav aria-label="Table of contents">
+      <ol></ol>
+    </nav>
+  </details>
+</div>
+
+<div class="scrim" id="scrim"></div>
+
+</body>
+</html>

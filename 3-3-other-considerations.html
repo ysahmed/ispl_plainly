@@ -1,0 +1,472 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>3.3 · Other considerations in the regression model — ISLP Plainly</title>
+<meta name="description" content="ISLP section 3.3 in plain language: dummy variables for categories, interaction terms that let one predictor depend on another, polynomial curves, the six ways regression goes wrong (non-linearity, correlated errors, non-constant variance, outliers, high leverage, collinearity) and the fix for each — with five interactive demos.">
+<link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css">
+<link rel="stylesheet" href="assets/css/style.css">
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/contrib/auto-render.min.js"></script>
+<script defer src="assets/js/plots.js"></script>
+<script defer src="assets/js/nav.js"></script>
+<script defer src="assets/data/ch03-data.js"></script>
+<script defer src="assets/js/stats.js"></script>
+<script defer src="assets/js/demos/dummy-split.js"></script>
+<script defer src="assets/js/demos/interact-lines.js"></script>
+<script defer src="assets/js/demos/poly-resid.js"></script>
+<script defer src="assets/js/demos/resid-zoo.js"></script>
+<script defer src="assets/js/demos/leverage.js"></script>
+<script defer src="assets/js/common.js"></script>
+</head>
+<body>
+
+<a class="skip-link" href="#main">Skip to content</a>
+
+<header class="topbar">
+  <button class="icon-btn" data-sidebar-toggle aria-label="Open navigation menu" aria-controls="sidebar">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 6h16M4 12h16M4 18h16"/></svg>
+  </button>
+  <span class="topbar-title">3.3 · Other considerations in the regression model</span>
+</header>
+
+<div class="app">
+
+  <!-- ======================= sidebar ======================= -->
+  <aside class="sidebar" id="sidebar">
+    <div class="brand">
+      <span class="logo">∑</span>
+      <a href="index.html">ISLP Plainly</a>
+    </div>
+
+    <nav class="side-nav" aria-label="Site navigation"></nav>
+
+    <div class="side-foot">
+      <button class="theme-btn" data-theme-toggle type="button">
+        <svg class="sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2m0 16v2M4.9 4.9l1.4 1.4m11.4 11.4 1.4 1.4M2 12h2m16 0h2M4.9 19.1l-1.4 1.4m11.4-11.4 1.4-1.4"/></svg>
+        <svg class="moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg>
+        <span class="theme-label">Dark mode</span>
+      </button>
+    </div>
+  </aside>
+
+  <!-- ======================= main ======================= -->
+  <main id="main">
+
+    <div class="page-head">
+      <p class="eyebrow">Chapter 3 · section 3.3 · book pages 91–109</p>
+      <h1>Other considerations in the regression model</h1>
+      <p class="lede">Everything that can go wrong between "we fit a line"
+        and "the line means something": categorical predictors, effects that
+        depend on each other, curves, bad points, and predictors that answer
+        each other's questions. The longest section of the chapter — and the
+        most practical, because it is a list of the mistakes you will
+        actually make.</p>
+    </div>
+
+    <section id="reading">
+      <h2>Reading</h2>
+      <ul class="reading">
+        <li><span class="r-label">Read</span>
+          <span class="r-body">All of 3.3.1 and 3.3.2 (pp. 91–100) — dummy
+            variables and interactions are tools you will use every day.
+            Then the six-item list in 3.3.3 (pp. 100–109), which is worth
+            treating as a checklist rather than prose.</span></li>
+        <li><span class="r-label">Skim</span>
+          <span class="r-body">The alternative codings of qualitative
+            variables (the ±1 dummy, contrasts). The book flags them as
+            "equivalent fits, different coefficients" and moves on; so
+            should you, until you need a specific contrast.</span></li>
+        <li><span class="r-label">Then</span>
+          <span class="r-body">Section 3.4 collects the chapter's seven
+            questions and answers all of them in two pages.</span></li>
+      </ul>
+
+      <div class="keybox">
+        <p class="keybox-title">Key ideas</p>
+        <p>A category becomes <strong>L − 1 dummy columns</strong> and one
+          <strong>baseline</strong>; the fit is identical whichever level you
+          baseline, only the reading changes. Multiplying two predictors
+          together (an <strong>interaction</strong>) lets one effect depend
+          on another — the TV × radio term lifts R² from 89.7% to 96.8%.
+          Multiplying a predictor by itself (<strong>polynomial</strong>)
+          bends the line while staying a linear model. And the diagnostic
+          habit that catches all of it: <em>plot the residuals and look for a
+          pattern</em> — a hill means non-linearity, a funnel means changing
+          variance, runs mean missing variables, and one lone point far out
+          in x can rotate the whole fit.</p>
+      </div>
+
+      <h3>What you will know afterwards</h3>
+      <ul class="chips">
+        <li class="chip">dummy variables and the baseline level</li>
+        <li class="chip">why the coding choice cannot change the fit</li>
+        <li class="chip">interaction = slope that depends on another predictor</li>
+        <li class="chip">hierarchical principle</li>
+        <li class="chip">polynomial terms stay a linear model</li>
+        <li class="chip">reading a residual plot: hill, funnel, runs, lone point</li>
+        <li class="chip">outlier vs high leverage</li>
+        <li class="chip">collinearity, VIF, and the two fixes</li>
+      </ul>
+    </section>
+
+    <section id="qualitative">
+      <h2>1. When the predictor is a category (3.3.1)</h2>
+
+      <p>The Credit data has four qualitative variables — <code>own</code>
+        (house ownership), <code>student</code>, <code>status</code> and
+        <code>region</code> — and no numbers anywhere in them. The trick is
+        to invent numbers that carry no order: a <strong>dummy
+        variable</strong> that is 1 for one level and 0 for everyone
+        else.</p>
+
+      $$x_i = \begin{cases} 1 & \text{if person } i \text{ owns a house} \\ 0 & \text{otherwise} \end{cases}$$
+
+      <p>Fit <code>balance ~ own</code> and the model literally becomes two
+        constants: everyone gets β̂₀, owners get an extra β̂₁. Table 3.7:
+        intercept <strong>509.80</strong>, <code>own[Yes]</code>
+        <strong>19.73</strong> with a p-value of <strong>0.67</strong> — no
+        evidence that owners carry more debt. Which raises the obvious
+        worry: <em>did coding owners as 1 rig the answer?</em> No. Flip the
+        coding and you get 529.53 and −19.73 — a different-looking pair that
+        predicts exactly the same thing (509.80 + 19.73 = 529.53). Code with
+        ±1 instead and the intercept becomes <span class="usd">$</span>519.665, the overall average,
+        with ±<span class="usd">$</span>9.865 half the gap. The <strong>fit never changes; only the
+        story you can tell about the coefficients does.</strong></p>
+
+      <p>Three levels need two dummies, because you need a reference to
+        measure from: region becomes <code>I(South)</code> and
+        <code>I(West)</code>, and everyone left over — the East — is the
+        <strong>baseline</strong>. Table 3.8: baseline 531.00, South −12.50,
+        West −18.69, both with p-values above 0.77. There is always one
+        fewer dummy than levels, and the level you drop is your ruler. Since
+        the choice of ruler is arbitrary, the book's advice when you care
+        about the variable as a whole is to skip the individual p-values and
+        run an F-test on the dummies together — p = 0.96 here, so region
+        says nothing at all.</p>
+
+      <p>Mixing a category with a number needs no special treatment: fit a
+        multiple regression with the dummy and the quantitative predictor,
+        as in <code>balance ~ income + student</code>. Pick a variable and
+        watch the design matrix appear:</p>
+
+      <figure class="demo" id="demo-dummy">
+        <div class="demo-body"><canvas id="cv-dummy"></canvas></div>
+        <div class="demo-controls">
+          <span class="ctrl">
+            <label for="dummy-var">Predictor</label>
+            <select id="dummy-var">
+              <option value="student">Credit · student status (2 levels)</option>
+              <option value="gender">Credit · gender (2 levels)</option>
+              <option value="shelveloc">Carseats · shelf quality (3 levels)</option>
+            </select>
+          </span>
+          <span class="ro" id="dummy-r2">R² = …</span>
+          <span class="ro" id="dummy-eq">ŷ = …</span>
+          <span class="ro" id="dummy-shifts">…</span>
+          <span class="ro" id="dummy-rows">…</span>
+        </div>
+        <figcaption><strong>Play with it:</strong> one colour per level, one
+          line per level — and every line is <em>parallel</em>, because a
+          dummy can only lift a line up or down, never tilt it. The readouts
+          show the model exactly as the software stores it: the fitted
+          equation, the separate starting heights, and the 0/1 rows that
+          stand in for the category (the shelf-quality case has two columns
+          and a baseline of "Bad", so <em>Medium</em> is [1, x, 1, 0] and
+          <em>Good</em> is [1, x, 0, 1]). Book's own numbers for this trick
+          are Tables 3.7 and 3.8 above; the demo uses the qualitative columns
+          the ISLP data actually ships — <code>student</code> and
+          <code>gender</code> from Credit, and Carseats'
+          three-level <code>ShelveLoc</code>, which doubles as a preview of
+          the lab.</figcaption>
+      </figure>
+    </section>
+
+    <section id="extensions">
+      <h2>2. Letting the model bend: interactions and curves (3.3.2)</h2>
+
+      <p>The standard model carries two strong assumptions.
+        <strong>Additivity</strong>: the effect of TV does not depend on how
+        much radio you bought. <strong>Linearity</strong>: every extra
+        <span class="usd">$</span>1,000 of TV buys exactly the same uplift, whether it is your first
+        or your hundredth. Both are frequently false, and both can be fixed
+        without leaving the linear-model family.</p>
+
+      <h3 id="interaction">The interaction term</h3>
+
+      <p>Multiply two predictors and let the product in:</p>
+
+      $$Y = \beta_0 + \beta_1 X_1 + \beta_2 X_2 + \beta_3 X_1 X_2 + \varepsilon$$
+
+      <p>Rearrange it and the point drops out: the slope on X₁ is now
+        β̃₁ = β₁ + β₃X₂ — <em>a function of the other predictor</em>. The
+        book's factory example: an extra production line adds 3.4 units, plus
+        1.4 per worker, so lines matter more the more workers you have. For
+        advertising (Table 3.9) the interaction coefficient is 0.0011 with
+        t = 20.73, and R² jumps from <strong>89.7% to 96.8%</strong> — the
+        interaction alone soaks up 69% of the variance the additive model was
+        leaving on the table. In words: <span class="usd">$</span>1,000 of TV is worth
+        <em>19 + 1.1 × radio</em> units, so TV and radio sell each other.</p>
+
+      <p>Two rules follow. The <strong>hierarchical principle</strong>: if
+        the interaction stays, both main effects stay, even when their own
+        p-values are unimpressive — X₁ × X₂ is correlated with X₁ and X₂, so
+        dropping them changes what the interaction means. And interactions
+        work with categories too, which is Figure 3.7 of the book: predict
+        balance from income, once for students and once for everyone
+        else.</p>
+
+      <figure class="demo" id="demo-interact">
+        <div class="demo-body"><canvas id="cv-interact"></canvas></div>
+        <div class="demo-controls">
+          <button class="btn" id="intx-term" type="button" aria-pressed="false">Add income × student</button>
+          <span class="ro" id="intx-slope0">…</span>
+          <span class="ro" id="intx-slope1">…</span>
+          <span class="ro" id="intx-r2">R² = …</span>
+          <span class="ro" id="intx-note">…</span>
+        </div>
+        <figcaption><strong>Play with it:</strong> Credit data, balance
+          against income, blue for non-students and amber for students.
+          Without the interaction the two lines are <em>forced parallel</em>
+          — one slope, two intercepts, exactly equation (3.34). Press the
+          button and each group gets its own slope, equation (3.35), and the
+          readouts report both: the book notes the student slope comes out
+          <em>lower</em>, so extra income is associated with a smaller rise
+          in balance for students than for everyone else. This is the
+          demo of Figure 3.7 — the only difference is that you can
+          switch the term on and off and watch R² and the slopes
+          change.</figcaption>
+      </figure>
+
+      <h3 id="curves">Curves, without leaving linear regression</h3>
+
+      <p>mpg against horsepower (Figure 3.8) is visibly bent. The fix looks
+        like cheating and is not: add the square of the predictor as
+        <em>another column</em>.</p>
+
+      $$\mathrm{mpg} = \beta_0 + \beta_1 \times \mathrm{horsepower} + \beta_2 \times \mathrm{horsepower}^2 + \varepsilon$$
+
+      <p>It is a curve in the data and still a straight line in the
+        coefficients, so every tool of Sections 3.1–3.2 applies unchanged.
+        The book's numbers (Table 3.10): 56.90, −0.4662 and +0.0012, with
+        R² rising from <strong>0.606 to 0.688</strong> and the squared term
+        significant at t = 10.1. Then the caution: extend to degree five and
+        the fit "seems unnecessarily wiggly". More degree is not automatically
+        better — the residual plot tells you when to stop.</p>
+
+      <figure class="demo" id="demo-poly">
+        <div class="demo-body grid2">
+          <canvas id="cv-poly"></canvas>
+          <canvas id="cv-polyres"></canvas>
+        </div>
+        <div class="demo-controls">
+          <span class="ctrl">
+            <label for="poly-deg">degree</label>
+            <input type="range" id="poly-deg" min="1" max="5" step="1" value="1">
+          </span>
+          <span class="ro" id="poly-degread">degree = 1</span>
+          <span class="ro" id="poly-rse">RSE = …</span>
+          <span class="ro" id="poly-r2">R² = …</span>
+          <span class="ro" id="poly-note">…</span>
+        </div>
+        <figcaption><strong>Play with it:</strong> <em>Left</em> — Auto's
+          392 cars with the fitted curve; <em>right</em> — the residuals
+          against the fitted values, with the dark line averaging each band
+          so the pattern is impossible to miss. Degree 1 leaves a clear hill
+          (Figure 3.9's left panel: non-linearity). Degree 2 flattens it and
+          matches the book's R² = 0.688 — one extra power, and all the
+          improvement. Degrees 3–5 chase individual cars: the curve wiggles,
+          the RSE barely moves (4.37 → 4.33), and the adjusted R² —
+          which charges rent for every extra power — creeps from 0.686
+          to 0.693 across three more terms, against the 0.605 → 0.686 jump
+          that degree 2 bought.</figcaption>
+      </figure>
+    </section>
+
+    <section id="problems">
+      <h2>3. Six ways it goes wrong (3.3.3)</h2>
+
+      <p>The book's list, verbatim in structure: <strong>1.</strong>
+        non-linearity, <strong>2.</strong> correlation of errors,
+        <strong>3.</strong> non-constant variance, <strong>4.</strong>
+        outliers, <strong>5.</strong> high-leverage points,
+        <strong>6.</strong> collinearity. The first five are things you find
+        by <em>looking at the residuals</em> — ideally a shapeless cloud with
+        no pattern, no trend, constant spread and no lone outliers. The
+        sixth is a thing you find by looking at the predictors. Two demos
+        cover the catalogue:</p>
+
+      <figure class="demo" id="demo-zoo">
+        <div class="demo-body grid2">
+          <canvas id="cv-resid-data"></canvas>
+          <canvas id="cv-resid-res"></canvas>
+        </div>
+        <div class="demo-controls">
+          <span class="ctrl">
+            <label for="resid-kind">Pattern</label>
+            <select id="resid-kind">
+              <option value="clean">clean data</option>
+              <option value="curve">curved relationship</option>
+              <option value="fan">fan-shaped noise</option>
+              <option value="runs">runs of same-sign residuals</option>
+            </select>
+          </span>
+          <span class="ro" id="resid-verdict">verdict: …</span>
+        </div>
+        <figcaption><strong>Play with it:</strong> the left panel always fits
+          a straight line — the point is what the right panel then shows.
+          <em>Curve</em> gives the U-shape of Figure 3.9 (add polynomial
+          terms). <em>Fan</em> gives the funnel of Figure 3.11 — variance
+          growing with the response, heteroscedasticity — whose usual fix is
+          to transform the response, log(Y) or √Y, or to use weighted least
+          squares. <em>Runs</em> gives long strings of same-signed residuals,
+          the signature of <em>correlated errors</em>: adjacent observations
+          sharing information the model never saw, common in time series.
+          The damage there is sneaky — the coefficients stay honest but the
+          standard errors shrink, so your confidence intervals and p-values
+          are quietly too confident. Only the shape tells you.</figcaption>
+      </figure>
+
+      <p><strong>Outliers</strong> (item 4) are points whose <em>y</em> is
+        far from the line. Figure 3.12's observation 20 barely tilts the fit
+        when removed — but it inflates the RSE from 0.77 to 1.09 and drags
+        R² from 0.892 down to 0.805, and since RSE feeds every interval and
+        p-value, one bad point degrades the whole report. The diagnostic is
+        the <strong>studentized residual</strong>, a residual divided by its
+        own estimated error: values beyond ±3 deserve a look. What does
+        <em>not</em> have to be unusual for this to happen? The predictor.
+        Which is the next item.</p>
+
+      <p><strong>High-leverage points</strong> (item 5) are unusual in
+        <em>x</em> — far from the rest of the data along the predictor axis,
+        like Figure 3.13's observation 41. The leverage statistic makes it
+        quantitative; for simple regression it is 1/n plus the squared
+        distance of x<sub>i</sub> from x̄, so it grows with distance, always
+        sits between 1/n and 1, and averages exactly (p + 1)/n — the rule of
+        thumb is "much bigger than that and be suspicious". The dangerous
+        combination is an outlier <em>with</em> leverage: unusual in y and
+        far out in x, it can rotate the entire line. Add both points and
+        compare:</p>
+
+      <figure class="demo" id="demo-lev">
+        <div class="demo-body"><canvas id="cv-outlier"></canvas></div>
+        <div class="demo-controls">
+          <button class="btn" id="out-toggle" type="button" aria-pressed="false">Add an outlier</button>
+          <button class="btn" id="out-leverage" type="button" aria-pressed="false">Add a high-leverage point</button>
+          <span class="ro" id="out-slope">slope: …</span>
+          <span class="ro" id="out-mse">MSE line: …</span>
+          <span class="ro" id="out-mae">MAE line: …</span>
+          <span class="ro" id="out-note">…</span>
+        </div>
+        <figcaption><strong>Play with it:</strong> solid line = least
+          squares (squared misses), dashed = least <em>absolute</em> misses.
+          Add the <em>outlier</em> — a wild y at an ordinary x — and the
+          slope barely moves, exactly as Figure 3.12 reports; the damage is
+          to the RSE and to every interval built on it. Add the
+          <em>high-leverage</em> point instead — a lone observation far to
+          the right — and the slope swings, because a point with no
+          neighbours in x gets to pull the line through itself. Compare the
+          two readouts: least squares chases squared misses, so it is the
+          method most sensitive to both; the absolute-error line shows how
+          much of the movement was really driven by that one huge
+          miss.</figcaption>
+      </figure>
+    </section>
+
+    <section id="collinearity">
+      <h2>4. Collinearity: predictors that answer for each other (3.3.3, item 6)</h2>
+
+      <p>Collinearity is when two predictors move together so closely that
+        the model cannot tell which one is doing the work. Figure 3.14 makes
+        the contrast visual: age and limit show no relationship; rating and
+        limit are almost the same variable twice. The consequence appears in
+        Figure 3.15's contour plots — for unrelated predictors the RSS bowl
+        has a tight, well-defined bottom, and for collinear ones it stretches
+        into a long valley where a whole range of coefficient pairs fits
+        equally well. Any nudge in the data can slide the answer anywhere
+        along that valley, which in practice means <strong>inflated standard
+        errors</strong>.</p>
+
+      <p>Table 3.11 shows the bill. Regress balance on age + limit and limit
+        comes out 0.173 ± 0.005 (t = 34.5). Regress balance on rating + limit
+        and limit becomes 0.025 ± 0.064 — a <strong>12-fold jump in the
+        standard error</strong>, p = 0.70, so a genuinely important variable
+        now looks useless. Nothing about the data changed; only the
+        neighbour.</p>
+
+      <table>
+        <thead>
+          <tr><th>Model</th><th>Term</th><th>Coefficient</th><th>Std. error</th><th>t</th><th>p</th></tr>
+        </thead>
+        <tbody>
+          <tr><td rowspan="3">1 · balance ~ age + limit</td><td>intercept</td><td>−173.411</td><td>43.828</td><td>−3.96</td><td>&lt; 0.0001</td></tr>
+          <tr><td>age</td><td>−2.292</td><td>0.672</td><td>−3.41</td><td>0.0007</td></tr>
+          <tr><td>limit</td><td>0.173</td><td>0.005</td><td>34.50</td><td>&lt; 0.0001</td></tr>
+          <tr><td rowspan="3">2 · balance ~ rating + limit</td><td>intercept</td><td>−377.537</td><td>45.254</td><td>−8.34</td><td>&lt; 0.0001</td></tr>
+          <tr><td>rating</td><td>2.202</td><td>0.952</td><td>2.31</td><td>0.0213</td></tr>
+          <tr><td>limit</td><td>0.025</td><td>0.064</td><td>0.38</td><td>0.7012</td></tr>
+        </tbody>
+      </table>
+
+      <p><strong>Detecting it.</strong> Start with the correlation matrix of
+        the predictors — any large value is a red flag. But three variables
+        can be tangled up with no strong pair at all (multicollinearity), so
+        the better tool is the <strong>variance inflation factor</strong>:</p>
+
+      $$\mathrm{VIF}(\hat{\beta}_j) = \frac{1}{1 - R^2_{X_j \mid X_{-j}}}$$
+
+      <p>Read it as: regress this predictor on all the others and see how
+        well they explain it. If they reproduce it perfectly (R² → 1) you
+        have learned nothing new by adding it, and the VIF explodes. The
+        floor is 1 (no collinearity); anything above <strong>5 or 10</strong>
+        is considered problematic. On Credit, balance ~ age + rating + limit
+        gives VIFs of <strong>1.01, 160.67, 160.59</strong> — that is not a
+        small problem.</p>
+
+      <p><strong>Fixing it</strong> — two options. Drop the redundant
+        variable: the book drops rating, VIFs fall back to ~1, and R² barely
+        notices (0.754 → 0.750), because rating was repeating limit's
+        information. Or combine them: average the standardised limit and
+        rating into a single "credit worthiness" score and regress on that.
+        Which you choose depends on whether you are trying to predict
+        (either works) or to explain (you want the variable you can actually
+        talk about).</p>
+
+      <div class="callout ok">
+        <p class="callout-title">Section 3.3 in one line</p>
+        <p>Categories become L − 1 dummy columns against a baseline; products
+          between predictors let effects depend on each other; squares of
+          predictors bend the curve while staying linear — and when any of
+          it goes wrong, the residual plot tells you which of the six
+          problems you have, while the correlation matrix and the VIF catch
+          the one problem (collinearity) that hides in the predictors
+          instead.</p>
+      </div>
+    </section>
+
+    <footer style="margin-top:64px;font-size:13.5px;color:var(--muted);">
+      <p class="further">Source: ISLP, Section 3.3 (pp. 91–109). Dummy
+        models, interactions, polynomial fits and residual plots on this
+        page are fitted live in the browser on Credit, Carseats and Auto —
+        the equation, slopes, R² and residuals you see are computed from the
+        points on screen. The tables quote the book's own output.</p>
+      <p>ISLP Plainly — <span data-year>2026</span></p>
+    </footer>
+  </main>
+
+  <!-- ======================= page TOC ======================= -->
+  <details class="page-toc" id="page-toc" open>
+    <summary>On this page</summary>
+    <p class="toc-title">On this page</p>
+    <nav aria-label="Table of contents">
+      <ol></ol>
+    </nav>
+  </details>
+</div>
+
+<div class="scrim" id="scrim"></div>
+
+</body>
+</html>

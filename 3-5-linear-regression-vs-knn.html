@@ -1,0 +1,278 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>3.5 · Linear regression vs KNN — ISLP Plainly</title>
+<meta name="description" content="ISLP section 3.5 in plain language: parametric vs non-parametric fitting, how KNN regression predicts by averaging neighbours, the bias-variance tradeoff in K, when a straight line beats KNN and when it loses, the curse of dimensionality, and why a model you can explain sometimes wins anyway.">
+<link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css">
+<link rel="stylesheet" href="assets/css/style.css">
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/contrib/auto-render.min.js"></script>
+<script defer src="assets/js/plots.js"></script>
+<script defer src="assets/js/nav.js"></script>
+<script defer src="assets/js/demos/lin-knn.js"></script>
+<script defer src="assets/js/common.js"></script>
+</head>
+<body>
+
+<a class="skip-link" href="#main">Skip to content</a>
+
+<header class="topbar">
+  <button class="icon-btn" data-sidebar-toggle aria-label="Open navigation menu" aria-controls="sidebar">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 6h16M4 12h16M4 18h16"/></svg>
+  </button>
+  <span class="topbar-title">3.5 · Linear regression vs KNN</span>
+</header>
+
+<div class="app">
+
+  <!-- ======================= sidebar ======================= -->
+  <aside class="sidebar" id="sidebar">
+    <div class="brand">
+      <span class="logo">∑</span>
+      <a href="index.html">ISLP Plainly</a>
+    </div>
+
+    <nav class="side-nav" aria-label="Site navigation"></nav>
+
+    <div class="side-foot">
+      <button class="theme-btn" data-theme-toggle type="button">
+        <svg class="sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2m0 16v2M4.9 4.9l1.4 1.4m11.4 11.4 1.4 1.4M2 12h2m16 0h2M4.9 19.1l-1.4 1.4m11.4-11.4 1.4-1.4"/></svg>
+        <svg class="moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg>
+        <span class="theme-label">Dark mode</span>
+      </button>
+    </div>
+  </aside>
+
+  <!-- ======================= main ======================= -->
+  <main id="main">
+
+    <div class="page-head">
+      <p class="eyebrow">Chapter 3 · section 3.5 · book pages 111–116</p>
+      <h1>Comparison of linear regression with K-nearest neighbors</h1>
+      <p class="lede">The chapter ends by handing the problem to the method
+        that does not need any of this — no line, no coefficients, no
+        p-values, just "average the similar points". It is the honest way to
+        close: the whole apparatus of Sections 3.1–3.4 rests on an
+        assumption about the shape of reality, and this section is where the
+        book admits it and shows you what happens when you drop it.</p>
+    </div>
+
+    <section id="reading">
+      <h2>Reading</h2>
+      <ul class="reading">
+        <li><span class="r-label\">Read</span>
+          <span class="r-body">Section 3.5 in full (pp. 111–116). Six pages,
+            four figures, one argument. Figures 3.18 and 3.20 are the pair to
+            sit with: one shows KNN losing, the other shows it losing again,
+            for a completely different reason.</span></li>
+        <li><span class="r-label\">Skim</span>
+          <span class="r-body">The one-dimensional plots (Figures 3.17–3.19)
+            if the pattern is obvious to you — curved truth, KNN wins;
+            straight truth, linear regression wins.</span></li>
+        <li><span class="r-label\">Then</span>
+          <span class="r-body">Section 3.6 (the lab) fits all of this in
+            Python on Boston housing and Carseats; the exercises come
+            afterwards.</span></li>
+      </ul>
+
+      <div class="keybox">
+        <p class="keybox-title">Key ideas</p>
+        <p><strong>Parametric</strong> methods commit to a shape up front and
+          estimate a handful of numbers — easy to fit, easy to interpret,
+          wrong if the shape is wrong. <strong>Non-parametric</strong>
+          methods commit to nothing and let the data draw the shape — no
+          functional assumption, but they need far more data to be sure of
+          anything. KNN regression is the simplest of those: predict the
+          average y of the K nearest training points. Small K is wiggly
+          (low bias, high variance); large K is smooth (high bias, low
+          variance) — the bias-variance tradeoff from Chapter 2, drawn as a
+          curve of test error against 1/K. And as the number of predictors
+          grows, "nearest" stops meaning anything: the curse of
+          dimensionality.</p>
+      </div>
+
+      <h3>What you will know afterwards</h3>
+      <ul class="chips">
+        <li class="chip">parametric vs non-parametric, in one sentence each</li>
+        <li class="chip">KNN regression = average of the K neighbours</li>
+        <li class="chip">K = 1 interpolates; big K oversmooths</li>
+        <li class="chip">linear wins when the truth is linear</li>
+        <li class="chip">curse of dimensionality: p eats your n</li>
+        <li class="chip">when to accept worse MSE for explainability</li>
+      </ul>
+    </section>
+
+    <section id="parametric">
+      <h2>1. Two ways to estimate a relationship</h2>
+
+      <p>Everything in Sections 3.1–3.4 was <strong>parametric</strong>: we
+        assumed the relationship was a line (or a plane, or a curve in the
+        polynomial sense), then estimated the few numbers that pin the shape
+        down. The book lists the trade plainly. Advantages: easy to fit
+        because there are only a small number of coefficients to estimate,
+        coefficients that have simple interpretations, and tests of
+        statistical significance you can run with a t-table. Disadvantage:
+        you assumed the form, so if the form is far from the truth and you
+        care about prediction accuracy, the method performs poorly — and any
+        conclusions drawn from it are suspect.</p>
+
+      <p><strong>Non-parametric</strong> methods do not assume a form for
+        f(X) at all. They give up the tidy coefficients and the p-values in
+        exchange for being able to follow whatever shape the data actually
+        has. The example in this section is the same idea that powered KNN
+        classification in Chapter 2, applied to numbers instead of labels.</p>
+
+      <div class="callout">
+        <p class="callout-title">This is Chapter 2, revisited</p>
+        <p>You already met the bias-variance tradeoff when choosing K for a
+          classifier. Nothing has changed except the average: instead of
+          majority vote you take the mean, instead of an error rate you take
+          a mean squared error. The flexibility dial, and the reason there is
+          a best setting for it, are identical.</p>
+      </div>
+    </section>
+
+    <section id="knn">
+      <h2>2. KNN regression: predict with your neighbours</h2>
+
+      <p>Given a value K and the point you want to predict at, x₀: find the
+        K training observations closest to x₀ — call that set N₀ — and
+        average their responses.</p>
+
+      $$\hat{f}(x_0) = \frac{1}{K} \sum_{x_i \in N_0} y_i$$
+
+      <p>No line is fitted and nothing is estimated before you ask. Figure
+        3.16 shows the shape this produces on two predictors: with K = 1 the
+        fit passes exactly through every training point, which means it is a
+        rough <em>step function</em> — a patchwork of flat tiles, each
+        labelled by the single observation inside it. With K = 9 the tiles
+        are still there (KNN always predicts a constant within a region) but
+        they are averaged over nine points, so the surface is much
+        smoother.</p>
+
+      <p>That is the whole tradeoff in one word: <strong>K</strong>. Small K
+        is flexible — it can hug a curve exactly — but every prediction
+        rests on one or two observations, so it inherits their noise and is
+        wildly variable from sample to sample. Large K averages the noise
+        away and gives a stable answer, but by averaging across a wide
+        neighbourhood it can smooth over real structure. Low bias, high
+        variance; then high bias, low variance.</p>
+
+      <figure class="demo" id="demo-knn">
+        <div class="demo-body grid2">
+          <canvas id="cv-lknn"></canvas>
+          <canvas id="cv-lknn-k"></canvas>
+        </div>
+        <div class="demo-controls">
+          <span class="ctrl">
+            <label for="lk-k">K</label>
+            <input type="range" id="lk-k" min="1" max="45" step="1" value="7">
+          </span>
+          <span class="ro" id="lk-kread">K = …</span>
+          <span class="ro" id="lk-mse-lin">test MSE line: …</span>
+          <span class="ro" id="lk-mse-knn">test MSE KNN: …</span>
+          <span class="ro" id="lk-note">…</span>
+        </div>
+        <figcaption><strong>Play with it:</strong> simulated data whose truth
+          is a <em>curve</em>, with 45 training points (amber) and 300
+          held-out test points (grey) that never participate in either fit.
+          <em>Left</em> — the dashed grey line is ordinary least squares and
+          the orange curve is KNN; press K = 1 and it steps through every
+          amber point like Figure 3.16's left panel, then raise it and watch
+          the steps merge into a smooth curve. <em>Right</em> — the same
+          story as a graph of test error: KNN's MSE (solid) against the
+          straight line's MSE (dashed), for every K from 1 to 45. This is the
+          book's Figure 3.18 right-hand panel, in colour: the curve falls
+          fast, hits a floor around K ≈ 5–15, then climbs back as
+          oversmoothing sets in. The blue marker is where you are standing;
+          the amber marker is the best K available — <em>which you can only
+          find by holding out test data</em>, something the training error
+          would never have told you.</figcaption>
+      </figure>
+    </section>
+
+    <section id="which">
+      <h2>3. So which one wins?</h2>
+
+      <p>The book's answer is a rule with a condition, not a ranking: <em>the
+        parametric approach will outperform the non-parametric approach if
+        the parametric form that has been selected is close to the true form
+        of f(X)</em>.</p>
+
+      <ul>
+        <li><strong>Truth is linear (Figure 3.17–3.18).</strong> K = 1
+          predictions are far too variable and K = 9 is closer to f, but even
+          K = 9 cannot beat a straight line: a non-parametric method incurs a
+          cost in variance that is not offset by any reduction in bias,
+          because there was no bias to remove. Linear regression's fit is
+          "almost perfect" and its test MSE sits below KNN's across the
+          board — though at very large K the gap narrows.</li>
+        <li><strong>Truth bends slightly (Figure 3.19, top).</strong> A
+          reversal at K ≥ 4: KNN starts to win, because it can chase the bend
+          while the line is stuck being straight.</li>
+        <li><strong>Truth bends a lot (Figure 3.19, bottom).</strong> KNN
+          wins at every K. Notice which method's error actually moves as the
+          relationship gets more curved: KNN's test MSE hardly changes at
+          all, while linear regression's climbs steeply — its assumptions are
+          what deteriorate, not its technique.</li>
+        <li><strong>Extra useless predictors (Figure 3.20).</strong> And
+          then the trap. Keep the same curved truth and add noise variables
+          that have nothing to do with y: at p = 1 or 2 KNN wins, results are
+          mixed at p = 3, and from <strong>p = 4 upward linear regression is
+          better</strong>. Linear regression degrades slowly; KNN's error
+          grows more than ten-fold. Fifty training observations describe a
+          one-dimensional relationship generously and a twenty-dimensional
+          one not at all — the K "nearest" points may be nowhere near
+          x₀ in the high-dimensional sense. That is the
+          <strong>curse of dimensionality</strong>: adding variables shrinks
+          your effective sample size. The rule of thumb the section leaves
+          you with: prefer parametric methods when there are few observations
+          per predictor.</li>
+      </ul>
+
+      <p>And even when KNN's test error is genuinely lower, there is a
+        second criterion: <strong>interpretability</strong>. A linear model
+        can be described in a sentence and comes with standard errors and
+        p-values; KNN comes with a lookup table and a black box. If the
+        difference in accuracy is small, the book's position is that giving up
+        a little prediction accuracy for a model you can explain — and
+        defend — is usually worth it.</p>
+
+      <div class="callout ok">
+        <p class="callout-title">Section 3.5 in one line</p>
+        <p>Linear regression assumes the shape and pays nothing when the
+          assumption holds and dearly when it does not; KNN assumes nothing
+          and pays in data — more neighbours smooth the variance, more
+          dimensions destroy the neighbourhood, and when your sample is
+          small relative to p, the assumption is the safer bet.</p>
+      </div>
+    </section>
+
+    <footer style="margin-top:64px;font-size:13.5px;color:var(--muted);">
+      <p class="further">Source: ISLP, Section 3.5 (pp. 111–116). The demo
+        above is a self-contained simulation in the spirit of Figures
+        3.16–3.18: train and test sets are generated fresh in the browser,
+        both models are fitted and scored there, and the numbers in the
+        readouts are real held-out mean squared errors — nothing is
+        transcribed from the book.</p>
+      <p>ISLP Plainly — <span data-year>2026</span></p>
+    </footer>
+  </main>
+
+  <!-- ======================= page TOC ======================= -->
+  <details class="page-toc" id="page-toc" open>
+    <summary>On this page</summary>
+    <p class="toc-title">On this page</p>
+    <nav aria-label="Table of contents">
+      <ol></ol>
+    </nav>
+  </details>
+</div>
+
+<div class="scrim" id="scrim"></div>
+
+</body>
+</html>

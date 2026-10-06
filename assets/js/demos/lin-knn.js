@@ -1,9 +1,11 @@
-/* Demo — Day 2 · linear regression vs KNN regression (ISLP section 3.5)
-   One slider: K.  Two fits on the same data: a straight line and KNN.
-   Readouts: test MSE of each, against a held-out test set. */
+/* Demo — linear regression vs KNN regression (§3.5)
+   One line, one step function, one slider.  Left: the two fits on the same
+   training data (faint dots) scored on held-out test points.  Right: test
+   error as K moves — the bias-variance tradeoff drawn as a curve. */
 (function () {
   'use strict';
   var cv = document.getElementById('cv-lknn');
+  var cvK = document.getElementById('cv-lknn-k');   // §3.5 only; §2.1 has one panel
   if (!cv || typeof Plot === 'undefined') return;
 
   var trueF = function (x) { return 0.32 * (x - 5) * (x - 5) + 3.5; };
@@ -51,11 +53,20 @@
   }
 
   var lineFn = fitLine(train);
+  var MSE_LINE = mse(test, lineFn);
   var K = 7;
   var elK = document.getElementById('lk-kread');
   var elLin = document.getElementById('lk-mse-lin');
   var elKnn = document.getElementById('lk-mse-knn');
   var elNote = document.getElementById('lk-note');
+
+  // test error for every K we allow — the curve on the right (§3.5 panel only)
+  var curve = null, bestK = null;
+  if (cvK) {
+    curve = [];
+    for (var k2 = 1; k2 <= 45; k2++) curve.push({ k: k2, m: mse(test, knnFit(train, k2)) });
+    bestK = curve.reduce(function (a, b) { return b.m < a.m ? b : a; });
+  }
 
   var plot = new Plot(cv, {
     range: { xmin: -0.5, xmax: 10.5, ymin: -6, ymax: 26 },
@@ -84,18 +95,54 @@
       p.text('straight line', 8.6, lineFn(8.6) - 3.4,
         { color: col.axis, align: 'right' });
 
-      var mLin = mse(test, lineFn), mKnn = mse(test, knn);
+      var mLin = MSE_LINE, mKnn = mse(test, knn);
       elK.innerHTML = 'K = <b>' + K + '</b>';
       elLin.innerHTML = 'test MSE line: <b>' + mLin.toFixed(1) + '</b>';
       elKnn.innerHTML = 'test MSE KNN: <b>' + mKnn.toFixed(1) + '</b>';
-      elNote.innerHTML = mKnn < mLin
-        ? 'KNN wins on this test set'
-        : 'the line wins on this test set';
+      elNote.innerHTML = K === 1
+        ? 'K = 1 interpolates every training point — the fit is pure noise between them'
+        : K >= 35
+          ? 'K is so large that every prediction is nearly the same average — oversmoothed'
+          : mKnn < mLin
+            ? (bestK
+              ? 'KNN wins on this test set (best K here: ' + bestK.k + ')'
+              : 'KNN wins on this test set — it follows the bend that the straight line has to cut across')
+            : 'the line wins on this test set — the noise KNN buys in outweighs the curve it catches';
     }
   });
+
+  var kplot = cvK ? new Plot(cvK, {
+    range: { xmin: 0.5, xmax: 45.5, ymin: 0, ymax: 30 },
+    height: 260,
+    xlabel: 'K (number of neighbours averaged)',
+    ylabel: 'test MSE',
+    draw: function (p) {
+      var col = p.colors;
+      p.range.ymax = Math.max.apply(null, curve.map(function (c) { return c.m; })) * 1.1;
+      p.axes();
+
+      p.hline(MSE_LINE, { color: col.axis, width: 2, dash: [7, 5] });
+      p.line(curve.map(function (c) { return [c.k, c.m]; }),
+        { color: col.accent, width: 2.6 });
+      p.points(curve.map(function (c) { return [c.k, c.m]; }),
+        { color: col.accent, r: 2.6, alpha: 0.8 });
+
+      p.dot(K, mse(test, knnFit(train, K)), { r: 6, color: col.fg, ring: col.surface, ringWidth: 2 });
+      p.dot(bestK.k, bestK.m, { r: 5.5, color: col.accent2, ring: col.surface, ringWidth: 2 });
+
+      p.text('straight line: ' + MSE_LINE.toFixed(1), 45, MSE_LINE - 2.2,
+        { align: 'right', color: col.axis, font: '11.5px system-ui' });
+      p.text('best K = ' + bestK.k, bestK.k, bestK.m + 3.4,
+        { align: 'center', color: col.accent2, font: '11.5px system-ui' });
+      p.text('too wiggly', 3, p.range.ymax * 0.9, { color: col.fg, font: '11px system-ui' });
+      p.text('too smooth', 42, p.range.ymax * 0.9,
+        { align: 'right', color: col.fg, font: '11px system-ui' });
+    }
+  }) : null;
 
   document.getElementById('lk-k').addEventListener('input', function (e) {
     K = parseInt(e.target.value, 10);
     plot.render();
+    if (kplot) kplot.render();
   });
 })();

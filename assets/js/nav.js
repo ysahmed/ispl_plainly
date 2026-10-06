@@ -23,7 +23,13 @@
       { href: '2-3-lab-introduction-to-python.html', num: '2.3', label: 'Lab: introduction to Python' },
       { href: '2-4-exercises.html', num: '2.4', label: 'Exercises' }
     ] },
-    { n: 3, title: 'Linear regression', read: 'pp. 69–134', sections: [] },
+    { n: 3, title: 'Linear regression', read: 'pp. 69–134', sections: [
+      { href: '3-1-simple-linear-regression.html', num: '3.1', label: 'Simple linear regression' },
+      { href: '3-2-multiple-linear-regression.html', num: '3.2', label: 'Multiple linear regression' },
+      { href: '3-3-other-considerations.html', num: '3.3', label: 'Other considerations in the regression model' },
+      { href: '3-4-the-marketing-plan.html', num: '3.4', label: 'The marketing plan' },
+      { href: '3-5-linear-regression-vs-knn.html', num: '3.5', label: 'Linear regression vs KNN' }
+    ] },
     { n: 4, title: 'Classification', read: 'pp. 135–200', sections: [
       { href: '4-1-an-overview-of-classification.html', num: '4.1', label: 'An overview of classification' },
       { href: '4-2-why-not-linear-regression.html', num: '4.2', label: 'Why not linear regression?' },
