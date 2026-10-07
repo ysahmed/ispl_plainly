@@ -197,12 +197,14 @@
     c.moveTo(p.l + .5, p.t); c.lineTo(p.l + .5, this.h - p.b + .5); c.lineTo(this.w - p.r, this.h - p.b + .5);
     c.stroke();
 
-    // x tick labels
-    c.fillStyle = col.axis;
-    for (var i2 = 0; i2 < xt.length; i2++) {
-      var tx = this.xToPx(xt[i2]);
-      if (tx < p.l - 2 || tx > this.w - p.r + 2) continue;
-      c.fillText(fmtTick(xt[i2]), tx, this.h - p.b + 6);
+    // x tick labels (suppressible with noXTicks for log-scale axes)
+    if (!this.o.noXTicks) {
+      c.fillStyle = col.axis;
+      for (var i2 = 0; i2 < xt.length; i2++) {
+        var tx = this.xToPx(xt[i2]);
+        if (tx < p.l - 2 || tx > this.w - p.r + 2) continue;
+        c.fillText(fmtTick(xt[i2]), tx, this.h - p.b + 6);
+      }
     }
     // y tick labels (suppressible with noYTicks for categorical rows)
     if (!this.o.noYTicks) {

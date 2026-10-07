@@ -1,0 +1,580 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>5.1 · Cross-Validation — ISLP Plainly</title>
+<meta name="description" content="ISLP section 5.1 in plain language: why training error lies, the validation set approach, leave-one-out cross-validation and its magic formula, k-fold CV, the bias-variance trade-off for k, and cross-validation on classification. Nine ideas, five live demos on the real Auto data.">
+<link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css">
+<link rel="stylesheet" href="assets/css/style.css">
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/contrib/auto-render.min.js"></script>
+<script defer src="assets/js/plots.js"></script>
+<script defer src="assets/js/nav.js"></script>
+<script defer src="assets/data/ch03-data.js"></script>
+<script defer src="assets/js/stats.js"></script>
+<script defer src="assets/js/demos/cv-split.js"></script>
+<script defer src="assets/js/demos/cv-valid.js"></script>
+<script defer src="assets/js/demos/cv-loocv.js"></script>
+<script defer src="assets/js/demos/cv-kfold.js"></script>
+<script defer src="assets/js/demos/cv-biasvar.js"></script>
+<script defer src="assets/js/demos/cv-class.js"></script>
+<script defer src="assets/js/common.js"></script>
+</head>
+<body>
+
+<a class="skip-link" href="#main">Skip to content</a>
+
+<header class="topbar">
+  <button class="icon-btn" data-sidebar-toggle aria-label="Open navigation menu" aria-controls="sidebar">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 6h16M4 12h16M4 18h16"/></svg>
+  </button>
+  <span class="topbar-title">5.1 · Cross-Validation</span>
+</header>
+
+<div class="app">
+
+  <!-- ======================= sidebar ======================= -->
+  <aside class="sidebar" id="sidebar">
+    <div class="brand">
+      <span class="logo">∑</span>
+      <a href="index.html">ISLP Plainly</a>
+    </div>
+
+    <nav class="side-nav" aria-label="Site navigation"></nav>
+
+    <div class="side-foot">
+      <button class="theme-btn" data-theme-toggle type="button">
+        <svg class="sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2m0 16v2M4.9 4.9l1.4 1.4m11.4-11.4 1.4 1.4M2 12h2m16 0h2M19.1 4.9l-1.4 1.4M4.9 19.1l-1.4 1.4"/></svg>
+        <svg class="moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg>
+        <span class="theme-label">Dark mode</span>
+      </button>
+    </div>
+  </aside>
+
+  <!-- ======================= main ======================= -->
+  <main id="main">
+
+    <div class="page-head">
+      <p class="eyebrow">Chapter 5 · section 5.1 · book pages 202–212</p>
+      <h1>Cross-validation</h1>
+      <p class="lede">You have fitted a model. You know how it does on the data
+        it saw — the question that actually matters is how it does on data it
+        never saw, and nobody hands you a set of those. This section builds
+        the three tricks for getting an honest answer out of the one dataset
+        you have: hold out a chunk, hold out one point at a time, or hold out
+        a handful of groups. The demos below do all of it live on the book's
+        392 cars, so every curve is one your browser just computed.</p>
+    </div>
+
+    <section id="reading">
+      <h2>Reading</h2>
+      <ul class="reading">
+        <li><span class="r-label">Read</span>
+          <span class="r-body">Section 5.1 in full (pp. 202–212). It is the
+            longest section in the chapter: five subsections, each one a
+            refinement of the last.</span></li>
+        <li><span class="r-label">Skim</span>
+          <span class="r-body">The bias-variance argument in 5.1.4 if you
+            already met it in Chapter 2 — the new part is only that the
+            <em>estimate of the test error</em> has a bias and a variance of
+            its own.</span></li>
+        <li><span class="r-label">Then</span>
+          <span class="r-body">Section 5.2, which is short: the bootstrap,
+            the other half of the resampling toolbox.</span></li>
+      </ul>
+
+      <div class="keybox">
+        <p class="keybox-title">Key ideas</p>
+        <p>The <strong>training error</strong> is computed on the very data
+          that chose the fit, so it is always optimistic — often wildly so.
+          The <strong>test error</strong> is what you care about, and you can
+          only estimate it with data the fit did not see. So: pretend part of
+          your data is a test set. The <strong>validation set approach</strong>
+          holds out half (noisy, and the model trains on less data).
+          <strong>LOOCV</strong> holds out one point at a time (honest,
+          almost no wasted data, but n fits — though for least squares a
+          formula does it in one). <strong>k-fold CV</strong> with k = 5 or
+          10 holds out k groups in turn: the compromise everyone actually
+          uses. For classification the score changes from squared error to a
+          simple count of mistakes; everything else stays.</p>
+      </div>
+
+      <h3>What you will know afterwards</h3>
+      <ul class="chips">
+        <li class="chip">why training error always flatters the model</li>
+        <li class="chip">validation set: the idea, and its two drawbacks</li>
+        <li class="chip">LOOCV = n runs, each leaving out one point</li>
+        <li class="chip">the (1 − h) magic formula for least squares</li>
+        <li class="chip">k-fold: 5 or 10 groups, 5 or 10 fits</li>
+        <li class="chip">why the bias-variance trade-off lands on k = 5 or 10</li>
+        <li class="chip">CV error rate instead of MSE for classes</li>
+        <li class="chip">CV picks the model; training error never can</li>
+      </ul>
+    </section>
+
+    <section id="why-hold-out">
+      <h2>1. The question you cannot answer with training error</h2>
+
+      <p>Chapter 2 already showed the shape of the problem: fit anything
+        flexible enough and its training error falls, and keeps falling, even
+        when the relationship it is chasing is pure noise. The training error
+        answers the wrong question — "how well does this model describe the
+        data it was handed?" — while you are asking "how well will it do next
+        time?".</p>
+
+      <p>The book puts the ideal version plainly: if you had a large
+        designated test set, you could just use it. You almost never do. So
+        the rest of the section invents one out of the training data: split
+        what you have, fit on one part, score on the other, and repeat the
+        split in whatever pattern gives the most trustworthy average.</p>
+
+      <div class="callout">
+        <p class="callout-title">Two numbers, one dataset</p>
+        <p>Every method on this page follows the same three steps —
+          <strong>split</strong> the data into a part that fits and a part
+          that scores, <strong>fit</strong> on the fitting part, score on the
+          scoring part — then <strong>average</strong> the scores over however
+          many splits the method calls for. The three methods differ only in
+          how they choose the splits.</p>
+      </div>
+    </section>
+
+    <section id="validation">
+      <h2>2. The validation set approach</h2>
+
+      <p>Randomly cut the data in half. Fit on the first half. Predict the
+        second half and take its mean squared error. That number estimates
+        the test error, and the demo below starts in exactly that mode —
+        press the buttons to see the other two splittings the section is
+        about to introduce (they share one picture because they are one idea
+        with three settings).</p>
+
+      <figure class="demo" id="demo-csplit">
+        <div class="demo-body"><canvas id="cv-csplit"></canvas></div>
+        <div class="demo-controls">
+          <button class="btn" id="cs-mode-val" type="button" aria-pressed="true">validation: hold out half</button>
+          <button class="btn" id="cs-mode-loo" type="button" aria-pressed="false">LOOCV: hold out one</button>
+          <button class="btn" id="cs-mode-kf" type="button" aria-pressed="false">k-fold: hold out a fold</button>
+          <span class="ctrl">
+            <label for="cs-k">k</label>
+            <input type="range" id="cs-k" min="2" max="10" step="1" value="5">
+          </span>
+          <button class="btn primary" id="cs-step" type="button">next split</button>
+          <span class="ro" id="cs-active">…</span>
+          <span class="ro" id="cs-train">…</span>
+          <span class="ro" id="cs-fits">…</span>
+          <span class="ro" id="cs-est">…</span>
+        </div>
+        <figcaption><strong>Play with it:</strong> twenty observations in a
+          row — blue ones are used to fit the model, amber ones are held back
+          and only used to score it. <em>Validation mode</em> is the book's
+          Figure 5.1: one random half-and-half split, one fit. Hit
+          "next split" and the halves reshuffle, which is the point — the
+          split is arbitrary. <em>LOOCV</em> is Figure 5.3: one row per
+          observation, each row holding out exactly one. <em>k-fold</em> is
+          Figure 5.5: one row per fold, the amber block stepping across as
+          each fold takes its turn. Watch the readout as you switch: the
+          training set shrinks from 19 points to 10, and the number of fits
+          climbs from 1 to 20.</figcaption>
+      </figure>
+
+      <p>Now the real thing. The book runs this on the Auto data: predict
+        mpg from polynomial functions of horsepower, degrees 1 through 10,
+        split the 392 cars in half, and look at the validation error for each
+        degree. The quadratic fit beats the linear one by a mile; the cubic
+        is slightly worse than the quadratic — so the extra term is not
+        buying anything. That is the whole promise of the method: you answered
+        "is degree 3 worth it?" without ever looking at a test set.</p>
+
+      <figure class="demo" id="demo-cvvalid">
+        <div class="demo-body grid2">
+          <canvas id="cv-cvval-1"></canvas>
+          <canvas id="cv-cvval-10"></canvas>
+        </div>
+        <div class="demo-controls">
+          <button class="btn primary" id="val-resplit" type="button">ten new random splits</button>
+          <span class="ro" id="val-best">…</span>
+          <span class="ro" id="val-d1d2">…</span>
+          <span class="ro" id="val-range">…</span>
+          <span class="ro" id="val-split">…</span>
+          <span class="ro" id="val-off">…</span>
+        </div>
+        <figcaption><strong>Play with it:</strong> the book's Figure 5.2 on
+          the real Auto data. <em>Left</em> — validation error against the
+          degree of the polynomial for one random half of the cars.
+          <em>Right</em> — the same calculation for ten different random
+          splits at once, the first one redrawn in red. Press the button to
+          throw all ten away and get ten fresh ones. The shape is always the
+          same (linear is not enough, degree 2 fixes it, nothing much is
+          gained after), but the exact heights move every time — read the
+          range in the readouts. One honest deviation from the printed
+          figure: the book's axis stops at 28, and a high-degree fit on a
+          bad split occasionally explodes into the hundreds. Rather than let
+          one spike squash the interesting dip flat, the axis is fixed at
+          14–32 and any point above it rides the top line with a dot — the
+          last readout prints exactly which degrees went off the top and how
+          many of the ten splits did it to. Your splits use the browser's own
+          random numbers, so they will never match the book's particular ten
+          curves; the shape is what is being reproduced.</figcaption>
+      </figure>
+
+      <p>Which brings us to the method's two drawbacks, exactly as the book
+        lists them:</p>
+
+      <ul>
+        <li><strong>The answer depends on the draw.</strong> Reshuffle and
+          you get a visibly different estimate — right panel above. The
+          estimate of the test error is itself a random variable, and with
+          only two groups it is a very twitchy one.</li>
+        <li><strong>The model is trained on less data.</strong> Half. Models
+          improve with more training data, so a model fitted on 196 cars is
+          scored, then judged as if it had been fitted on all 392 — which
+          makes the validation error run a little <em>high</em> compared to
+          the real thing.</li>
+      </ul>
+
+      <div class="callout warn">
+        <p class="callout-title">Safe to skip on a first read</p>
+        <p>Whether the validation error over- or under-shoots depends on two
+          opposing forces (less training data pushes it up; scoring on data
+          the model never saw pushes it down). The book keeps the practical
+          version: treat it as an estimate, and prefer methods below whose
+          averages are steadier.</p>
+      </div>
+    </section>
+
+    <section id="loocv">
+      <h2>3. Leave-one-out cross-validation</h2>
+
+      <p>Fix the first drawback by holding out a single observation: fit on
+        the other n − 1, predict the one you kept, take that squared error —
+        then move on to the next observation and do it again. After n runs
+        you have n squared errors, and their average is the LOOCV estimate of
+        the test MSE:</p>
+
+      $$\mathrm{CV}(n) = \frac{1}{n} \sum_{i=1}^{n} \mathrm{MSE}_i$$
+
+      <p>Read as a sentence: the leave-one-out estimate is one over n, times
+        the sum of the n errors, where error i is the miss on the single
+        observation that was left out of fit i.</p>
+
+      <p>Two things went right. Every fit used n − 1 points — nearly all the
+        data — so the second drawback is gone. And there is nothing random in
+        the split: run it twice and you get the same number to the last
+        digit, so the first drawback is gone too. The cost is n fits of the
+        model, which for something slow is a real price.</p>
+
+      <p>For least squares, though, it is not a price at all. An amazing
+        shortcut exists: fit the model <em>once</em>, then</p>
+
+      $$\mathrm{CV}(n) = \frac{1}{n} \sum_{i=1}^{n} \left(\frac{y_i - \hat{y}_i}{1 - h_i}\right)^2$$
+
+      <p>Read as a sentence: each residual is divided by one minus that
+        observation's <strong>leverage</strong> h<sub>i</sub> before it is
+        squared and averaged. Leverage (from equation 3.37) measures how
+        much observation i pulled the fit towards itself — it runs from 1/n
+        for an ordinary point up towards 1 for a point sitting far from the
+        rest. Dividing by (1 − h) inflates the misses of exactly the points
+        the fit was most able to chase, which is the correction you would
+        have gotten by refitting without them.</p>
+
+      <figure class="demo" id="demo-loocv">
+        <div class="demo-body grid2">
+          <canvas id="cv-loo-curve"></canvas>
+          <canvas id="cv-loo-point"></canvas>
+        </div>
+        <div class="demo-controls">
+          <span class="ctrl">
+            <label for="loo-deg">degree</label>
+            <input type="range" id="loo-deg" min="1" max="10" step="1" value="2">
+          </span>
+          <span class="ro" id="loo-degread">…</span>
+          <span class="ro" id="loo-mse">…</span>
+          <button class="btn primary" id="loo-brute" type="button">brute force: refit 392 times</button>
+          <span class="ro" id="loo-brute-r">…</span>
+          <span class="ro" id="loo-obs">…</span>
+          <span class="ro" id="loo-lever">…</span>
+        </div>
+        <figcaption><strong>Play with it:</strong> <em>Left</em> — the LOOCV
+          curve (red) beside the training MSE (grey dashes) for degrees 1–10
+          on Auto. The training curve keeps falling; LOOCV turns around,
+          because holding data back is what lets you see overfitting.
+          <em>Right</em> — every car at this degree, plotted by its leverage
+          against its squared miss; the red arrow stretches the biggest
+          contributor from what it was to what it counts as under formula
+          (5.2). Now the button: it genuinely refits the model 392 times,
+          leaving one car out each time, and prints the two answers side by
+          side — they agree to about fifteen digits, which is the formula's
+          promise. (One browser click doing 392 fits is exactly why the
+          shortcut matters.)</figcaption>
+      </figure>
+
+      <div class="callout">
+        <p class="callout-title">Section 5.1.2 in one line</p>
+        <p>LOOCV is the validation idea with the arbitrariness removed — every
+          point gets one turn as the test set — and for least squares it
+          costs one fit plus a division by (1 − h) per point.</p>
+      </div>
+    </section>
+
+    <section id="kfold">
+      <h2>4. k-fold cross-validation</h2>
+
+      <p>n fits is only free for least squares. For a method whose fitting
+        procedure is slow, the way out is to split the data into k groups —
+        "folds" — of about equal size, and use each fold once as the
+        validation set while fitting on the other k − 1:</p>
+
+      $$\mathrm{CV}(k) = \frac{1}{k} \sum_{i=1}^{k} \mathrm{MSE}_i$$
+
+      <p>Read as a sentence: the k-fold estimate is the average of the k
+        fold-by-fold errors — one per fold, so k fits total. Set k = n and
+        you have rediscovered LOOCV; in practice people use k = 5 or k = 10,
+        which means 5 or 10 fits no matter how big the dataset is.</p>
+
+      <p>There is also a statistical bonus. Section 5.1.1's first drawback
+        was variability, and 5.1.3's right-hand panel is the answer: nine
+        different 10-fold runs of the same calculation land close together,
+        much closer than nine validation-set splits do. The demo below draws
+        both at once so you can compare the wobble directly.</p>
+
+      <figure class="demo" id="demo-kfold">
+        <div class="demo-body grid2">
+          <canvas id="cv-kf-curves"></canvas>
+          <canvas id="cv-kf-spread"></canvas>
+        </div>
+        <div class="demo-controls">
+          <span class="ctrl">
+            <label for="kf-k">k</label>
+            <input type="range" id="kf-k" min="2" max="10" step="1" value="10">
+          </span>
+          <span class="ro" id="kf-kread">…</span>
+          <button class="btn primary" id="kf-run" type="button">new run</button>
+          <button class="btn" id="kf-reset" type="button">reset to four runs</button>
+          <span class="ro" id="kf-best">…</span>
+          <span class="ro" id="kf-spread">…</span>
+          <span class="ro" id="kf-runs">…</span>
+        </div>
+        <figcaption><strong>Play with it:</strong> <em>Left</em> — k-fold CV
+          on Auto, one bold curve for the newest run and every earlier run
+          left faint, the book's Figure 5.4 right-hand panel. Keep pressing
+          "new run": the curves wobble but stay in a tight band. Drag k down
+          to 2 and they spread out — fewer, smaller folds, noisier
+          estimates. <em>Right</em> — the same runs summarized as ranges:
+          blue bars for k-fold, red for the validation set approach, at
+          every degree. The red bars are consistently wider: that is
+          §5.1.1's drawback 1, measured. The readout quotes both widths for
+          the degree your latest run liked best.</figcaption>
+      </figure>
+    </section>
+
+    <section id="bias-variance">
+      <h2>5. Which k is better? The bias-variance trade-off, again</h2>
+
+      <p>Chapter 2's trade-off was about models. This one is about the
+        <em>error estimate itself</em>: every CV number you compute is a
+        random variable with its own bias (does it sit systematically above
+        or below the truth?) and its own variance (does it jump around?). The
+        book argues the two sides pull against each other as k changes:</p>
+
+      <ul>
+        <li><strong>Bias.</strong> The validation approach trains on half the
+          data, so its estimate runs <strong>high</strong>. LOOCV trains on
+          n − 1 points, so it is <strong>almost unbiased</strong> — from the
+          book's own words, it is to be preferred "from the perspective of
+          bias reduction". k = 5 or 10 sits in between: each fit sees
+          (k − 1)n/k points, so a touch of bias, but far less than a
+          half-split.</li>
+        <li><strong>Variance — the book's argument.</strong> LOOCV averages
+          the outputs of n fits trained on almost identical data, so those
+          outputs are strongly <em>correlated</em>, and averaging correlated
+          quantities steadies an estimate much less than averaging
+          independent ones. k-fold averages k outputs from fits that overlap
+          less, so it steadies better. On that reasoning the book states
+          that LOOCV's estimate carries higher variance than k-fold's.</li>
+        <li><strong>So:</strong> k = 5 or 10 — estimates that "suffer neither
+          from excessively high bias nor from very high variance", at a cost
+          of only k fits.</li>
+      </ul>
+
+      <p>Only simulation can check any of this, because it needs the true
+        test error. The demo simulates data from a known truth, repeats the
+        whole experiment 40 times, and reports each flavour's average error
+        (its bias) and its spread across the repeats (its variance) at the
+        best degree.</p>
+
+      <figure class="demo" id="demo-biasvar">
+        <div class="demo-body grid2">
+          <canvas id="cv-bvmean"></canvas>
+          <canvas id="cv-bvbars"></canvas>
+        </div>
+        <div class="demo-controls">
+          <button class="btn" id="bv-truth-line" type="button" aria-pressed="false">truth: straight</button>
+          <button class="btn" id="bv-truth-curve" type="button" aria-pressed="true">truth: curved</button>
+          <button class="btn" id="bv-truth-wild" type="button" aria-pressed="false">truth: wild</button>
+          <button class="btn" id="bv-k-half" type="button" aria-pressed="false">validation half</button>
+          <button class="btn" id="bv-k-5" type="button" aria-pressed="false">5-fold</button>
+          <button class="btn" id="bv-k-10" type="button" aria-pressed="true">10-fold</button>
+          <button class="btn" id="bv-k-loo" type="button" aria-pressed="false">LOOCV</button>
+          <button class="btn primary" id="bv-redraw" type="button">new draws</button>
+          <span class="ro" id="bv-kread">…</span>
+          <span class="ro" id="bv-reps">…</span>
+          <span class="ro" id="bv-true">…</span>
+          <span class="ro" id="bv-bias">…</span>
+          <span class="ro" id="bv-sd">…</span>
+          <span class="ro" id="bv-note">…</span>
+        </div>
+        <figcaption><strong>Play with it:</strong> the truth is known (pick
+          the three versions of it — same idea as Chapter 2's Figure 2.9–2.11
+          simulations), so the <em>true</em> test MSE can be computed
+          exactly: the dashed black line in the left panel. The red line is
+          the average CV estimate over 40 repeats, with whiskers for ±1
+          standard deviation across those repeats. Switch between the four
+          splittings and watch two things: how far the red line sits from the
+          black one (bias) and how long the whiskers are (variance). The
+          right panel puts all four side by side at the best degree — red
+          bars are bias, blue bars are spread across the 40 repeats. What to
+          look for: the half-split's red bar sits clearly above zero <em>and</em>
+          its blue bar is the widest — wrong and jittery at once; LOOCV's red
+          bar hugs zero; 5- and 10-fold sit close to the truth with short
+          bars. For the ranking the book makes in words (LOOCV's spread vs
+          10-fold's), the two blue bars come out within a few percent of each
+          other and swap places when you press "new draws" — with 40 repeats
+          at n = 60 this experiment settles the bias story cleanly but not
+          that narrow ranking, and the readout prints the exact numbers
+          rather than inviting you to eyeball bar heights. What it does
+          settle: every scheme with k ≥ 5 hugs the truth and is far steadier
+          than a half-split. "New
+          draws" reruns the whole experiment with fresh samples.
+          <span class="demo-note">Everything here — 40 repeats × 10 degrees ×
+            four splitting schemes, thousands of fits — is computed in your
+            browser on each press, which is also why the whiskers never sit
+            still.</span></figcaption>
+      </figure>
+
+      <p>That is the section's conclusion: pick k = 5 or k = 10. Empirically
+        they give estimates that suffer neither from high bias nor from very
+        high variance — and they are cheap.</p>
+
+      <div class="callout ok">
+        <p class="callout-title">Section 5 in one line, so far</p>
+        <p>Never score a model on the data that fitted it. Hold something
+          back — half, one point, or k folds — fit on the rest, score what
+          you held back, average. Prefer k = 10 unless each fit is very
+          expensive, in which case k = 5, and only fall back on a single
+          validation split when the data is too large to do better.</p>
+      </div>
+    </section>
+
+    <section id="classification">
+      <h2>6. Cross-validation on classification problems</h2>
+
+      <p>Nothing about splitting changes when Y is a label rather than a
+        number — only the score. Instead of mean squared error, count the
+        mistakes:</p>
+
+      $$\mathrm{CV}(n) = \frac{1}{n} \sum_{i=1}^{n} \mathrm{Err}_i,
+        \qquad \mathrm{Err}_i = I(y_i \neq \hat{y}_i)$$
+
+      <p>Read as a sentence: the CV error rate is the average of the n
+        hold-out errors, where each error is 1 if the prediction was wrong
+        and 0 if it was right. The validation and k-fold versions replace the
+        divisor with 2 or k and the terms with each group's proportion of
+        mistakes — same machinery, different ruler.</p>
+
+      <p>The book's example is the two-dimensional simulated classification
+        data from Figure 2.13, fitted with logistic regressions on polynomial
+        terms of increasing degree. In the simulation you know the truth: the
+        test error rates for degrees 1 to 4 are 0.201, 0.197, 0.160 and
+        0.162, against a Bayes error rate of 0.133 — no classifier can do
+        better than that last number. In real data you know none of this.
+        So the book fits ten logistic regressions (degrees 1–10), computes
+        the 10-fold CV error for each, and reads the answer off the CV curve:
+        it reaches its minimum at degree 4, right next to the true minimum at
+        degree 3, while tracking the true test error closely throughout. In
+        the book's run the CV curve sits a touch <em>under</em> the test
+        curve; in the demo below it sits a touch over. Which side it lands on
+        is sampling noise — what matters is that the two curves move
+        together, and that the training error, which only ever falls, does
+        not.</p>
+
+      <figure class="demo" id="demo-cvclass">
+        <div class="demo-body grid2">
+          <canvas id="cv-cl-boundary"></canvas>
+          <canvas id="cv-cl-error"></canvas>
+        </div>
+        <div class="demo-controls">
+          <button class="btn" id="cl-mode-logit" type="button" aria-pressed="true">logistic polynomials</button>
+          <button class="btn" id="cl-mode-knn" type="button" aria-pressed="false">KNN</button>
+          <span class="ctrl">
+            <label for="cl-flex" id="cl-flexlabel">degree</label>
+            <input type="range" id="cl-flex" min="1" max="10" step="1" value="3">
+          </span>
+          <span class="ro" id="cl-flexread">…</span>
+          <button class="btn primary" id="cl-refold" type="button">new 10-fold split</button>
+          <span class="ro" id="cl-train">…</span>
+          <span class="ro" id="cl-test">…</span>
+          <span class="ro" id="cl-cv">…</span>
+          <span class="ro" id="cl-bayes">…</span>
+          <span class="ro" id="cl-best">…</span>
+        </div>
+        <figcaption><strong>Play with it:</strong> Figures 5.7 and 5.8, run
+          live on a fresh two-class simulation (200 training points, 2,000
+          test points that never touch the fits; centres chosen so the Bayes
+          floor lands at the book's ≈0.13). <em>Left</em> — the decision
+          boundary the selected method draws at the selected flexibility,
+          with the Bayes boundary dashed on top; raise the degree and watch
+          the boundary start chasing stray points. <em>Right</em> — the
+          Figure 5.8 trio: training error (blue) falls forever, true test
+          error (red) makes a U, and the 10-fold CV error (black) shadows the
+          test error and picks a minimum right next to it. Switch to KNN for
+          the right-hand panel of Figure 5.8 (x-axis is K on a log scale) —
+          same picture, different flexibility dial. "New 10-fold split"
+          reshuffles the folds; the black curve moves a little, the red one
+          cannot, because the test set is fixed. The book's exact rates
+          (0.201 … 0.162) come from its own simulation; the demo computes
+          ours from scratch, and the lesson — CV tracks the test error,
+          training error does not — is what reproduces.</figcaption>
+      </figure>
+
+      <div class="callout ok">
+        <p class="callout-title">Section 5.1 in one line</p>
+        <p>Cross-validation is the honest way to estimate how a model will do
+          on the next batch of data: split, fit, score, average — with k = 10
+          as the default, the (1 − h) formula when the model is least
+          squares, and an error count instead of squared error when the
+          response is a label. It can never tell you the answer for data
+          drawn from a different world, only for this one held back.</p>
+      </div>
+    </section>
+
+    <footer style="margin-top:64px;font-size:13.5px;color:var(--muted);">
+      <p class="further">Source: ISLP, Section 5.1 (pp. 202–212). Every curve
+        on this page is computed in your browser from real data: the Auto
+        data set (392 cars) for the validation, LOOCV and k-fold demos, a
+        seeded two-class simulation for the classification demo, and a
+        known-truth simulation for the bias-variance demo. The book's
+        particular random splits cannot be reproduced (its seeds are not
+        published), so the demos match the book's shapes and conclusions,
+        and the book's exact numbers are quoted in the text above as the
+        book's own run.</p>
+      <p>ISLP Plainly — <span data-year>2026</span></p>
+    </footer>
+  </main>
+
+  <!-- ======================= page TOC ======================= -->
+  <details class="page-toc" id="page-toc" open>
+    <summary>On this page</summary>
+    <p class="toc-title">On this page</p>
+    <nav aria-label="Table of contents">
+      <ol></ol>
+    </nav>
+  </details>
+</div>
+
+<div class="scrim" id="scrim"></div>
+
+</body>
+</html>

@@ -38,7 +38,10 @@
       { href: '4-5-a-comparison-of-classification-methods.html', num: '4.5', label: 'A comparison of classification methods' },
       { href: '4-6-generalized-linear-models.html', num: '4.6', label: 'Generalized linear models' }
     ] },
-    { n: 5, title: 'Resampling methods', read: 'pp. 201–228', sections: [] },
+    { n: 5, title: 'Resampling methods', read: 'pp. 201–228', sections: [
+      { href: '5-1-cross-validation.html', num: '5.1', label: 'Cross-Validation' },
+      { href: '5-2-the-bootstrap.html', num: '5.2', label: 'The Bootstrap' }
+    ] },
     { n: 6, title: 'Model selection and regularization', read: 'pp. 229–288', sections: [] },
     { n: 7, title: 'Moving beyond linearity', read: 'pp. 289–330', sections: [] },
     { n: 8, title: 'Tree-based methods', read: 'pp. 331–366', sections: [] },
