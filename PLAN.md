@@ -16,7 +16,8 @@ Borrow style and code from /home/waesh/Learning/10days_islp/site/
 **Chapter 2 is built and verified (6 Oct 2026).**
 **Chapter 4 is built and verified (6 Oct 2026).**
 **Chapter 3 is built and verified (6 Oct 2026).**
-**Chapter 5 is built and verified (7 Oct 2026).** Chapters 6–13 are not started
+**Chapter 5 is built and verified (7 Oct 2026).**
+**Chapter 6 is built and verified (12 Oct 2026).** Chapters 7–13 are not started
 and are only built when asked for, one chapter per request.
 
 | Chapter | Pages | Status |
@@ -26,7 +27,7 @@ and are only built when asked for, one chapter per request.
 | 3 Linear Regression | `3-1-simple-linear-regression.html` … `3-5-linear-regression-vs-knn.html` (sections only; lab 3.6 and exercises 3.7 deferred) | **done** |
 | 4 Classification | `4-1-an-overview-of-classification.html` … `4-6-generalized-linear-models.html` (4.7 lab, 4.8 exercises deferred) | **done** |
 | 5 Resampling | `5-1-cross-validation.html`, `5-2-the-bootstrap.html` (sections only; lab 5.3 and exercises 5.4 deferred) | **done** |
-| 6 Model Selection & Regularization | 6.1 … 6.6 (6.5 lab, 6.6 exercises) | not started |
+| 6 Model Selection & Regularization | `6-1-subset-selection.html` … `6-4-considerations-in-high-dimensions.html` (sections only; lab 6.5 and exercises 6.6 deferred) | **done** |
 | 7–13 | — | out of scope until asked |
 
 ## How the site is put together
@@ -248,7 +249,72 @@ the browser only has to draw. No pandas, no numpy, no ISLP install required.
   demos display is computed live, and the prose points at the readouts
   rather than repeating numbers that would go stale.
 
-## Verification (done for Chapters 1–5)
+## Chapter 6 notes
+
+- Four pages (6.1 subset selection, 6.2 shrinkage, 6.3 dimension reduction,
+  6.4 high dimensions) and thirteen demos: `sub-all`, `sub-steps`,
+  `sub-criteria` (§6.1); `shrink-path`, `shrink-geometry`, `shrink-soft`,
+  `shrink-ridge-cv`, `shrink-sparse` (§6.2); `pca-dir`, `pcr-credit`,
+  `pls-dir` (§6.3); `hd-noise`, `hd-lasso` (§6.4). Lab 6.5 and exercises 6.6
+  are **deferred**, as in Chapters 3–5.
+- **Page ranges** are taken from the book's own folios: §6.1 = pp. 230–240,
+  §6.2 = 241–253, §6.3 = 254–262, §6.4 = 263–267. The rule is "the first folio
+  after the section heading", which puts the Lab heading at p. 268.
+- **`assets/js/stats.js` grew the chapter's machinery**: `prepare` /
+  `crossprod` / `rssFrom` / `subsetSearch` / `stepwise` / `criteria` for §6.1,
+  a cyclic coordinate descent plus `ridgePath`, `lassoPath`, `loocvRidge`,
+  `eigSym` and `kfolds` for §6.2, and `pca` / `pcr` / `pls` for §6.3. Every
+  one of them follows ISLP's own convention where the book pins it down:
+  predictors are centred and scaled to sd 1 using the *n* divisor (eq. 6.6),
+  and λ is on the book's **RSS + λΣβ² / RSS + λΣ|β|** scale — the λ that
+  appears in eqs. (6.14) and (6.15), *not* the 1/(2n)-scaled λ that glmnet
+  happens to print.
+- **Data:** `tools/ch06_data.py` → `assets/data/ch06-data.js` holds
+  `CH06_LASSO`, `CH06_RIDGE`, `CH06_LASSOCV`, `CH06_HD` and `CH06_POPAD`; a
+  full regeneration takes about 9 minutes. Credit and Auto come from Chapter
+  3's `CH03_CREDIT` / `CH03_AUTO`.
+- **§6.3's three demos are deliberately three different designs.** `pca-dir`
+  runs raw PCA on *centred raw* pop/ad, because Figure 6.15's perpendicular
+  drops only mean anything on the unscaled variables (our raw-PC slope is
+  0.58 against 0.74 for the standardised version — the latter is just
+  sd(ad)/sd(pop)). `pcr-credit` runs PCR on *standardised* Credit
+  predictors and plots standardised coefficient paths. `pls-dir` runs PLS on
+  standardised columns but maps the answer back into pop/ad units. The
+  pop/ad data is ours — seed 9061, 100 simulated cities — and every caption
+  says so; the book's own loadings (φ₁₁ = 0.839, 0.544 and the example score
+  18.7) appear in the prose as book text only.
+- **§6.4's two demos rebuild the book's figures on our own simulations and
+  both say so.** `hd-noise` is Figure 6.23 live — twenty training rows,
+  two thousand test rows, pure noise, seed 263 — and it stops at **p = 19**
+  rather than the book's 20, because at p = 19 with n = 20 the system is
+  already square and `Stats.ols`'s pivot guard garbles p = 20; the caption
+  says we stop one predictor short of the cliff the book draws.
+  `hd-lasso` is a different experiment from Figure 6.24 and the page says
+  that too: the book sweeps three fixed tuning parameters and reads a
+  boxplot per one, while ours lets ten-fold cross-validation pick λ once per
+  replicate and reports the degrees of freedom it landed on. The conclusions
+  match (least shrinkage at p = 20, real shrinkage at p = 50, nothing much
+  helps at p = 2,000) and the numbers are quoted from the live run, not from
+  the book.
+- **Two real bugs, both found by the harness rather than by reading.**
+  `#t61` sat on the `<tbody>` instead of the `<table>`, so
+  `document.querySelector('#t61 tbody')` was always null and Table 6.1
+  rendered its `…` placeholders forever; and the new `window.__CRIT` export
+  called `sel.map(s => s.idx)` when `sel[0]` is null, throwing at the end of
+  the IIFE. Both are fixed, and the table gained the "Verdict" header its
+  fourth column had always lacked.
+- **The two Chapter 6 harnesses must not run at the same time.**
+  `/tmp/opencode/ch6_page_probe.py` (structural: ids, KaTeX, painted
+  canvases, exercised controls, sidebar group and `aria-current`, pager
+  including the trailing "—", dark repaint, 390px overflow, zero console
+  errors) and `/tmp/opencode/ch6_numbers.py` (numeric) both serve the site
+  from the same `/tmp/opencode/ch6_site` scratch directory. Chapter 6's
+  numeric side is 220 assertions spread over all four sections; §6.1's were
+  added with a new `__CRIT` export, and §6.2's reuse the independent Python
+  in `/tmp/opencode/ch6_ref.py` (same 32-bit PRNG, same cyclic coordinate
+  descent, same hat-matrix LOOCV shortcut).
+
+## Verification (done for Chapters 1–6)
 
 Headless Chromium via the DevTools protocol:
 
@@ -343,10 +409,28 @@ Chapter 5 (harnesses `/tmp/opencode/ch5_check.py` for structure and
   height in single-row mode, and the stale "amber" colour word in the
   k-fold caption.
 
+- **Chapter 6 (harnesses `/tmp/opencode/ch6_page_probe.py` and
+  `/tmp/opencode/ch6_numbers.py`, run one after the other — they race on the
+  same scratch directory).** All four pages pass the structural probe: every
+  id the demos query, KaTeX rendered with no `$$` left behind, canvases
+  painted in light and dark, every control moving a readout, the `6 · …`
+  sidebar group with its four links and one `aria-current`, the pager
+  reading `← 5.2 … → 6.2 …` and `← 6.3 … → —`, zero console errors and
+  zero horizontal overflow at 390px. The numeric side is 220/220: §6.1's
+  frontier RSS, C_p/BIC/adjusted-R² curves and both direct estimates
+  (validation and 10-fold) recomputed from the 2,047-model search, plus the
+  forward stepwise path and live Table 6.1; §6.2's entire 60-point ridge
+  LOOCV curve and both chosen λ, and the sparse simulation's 40-point path
+  on both draws; §6.3's PCA loadings and scores, the PCR CV curve (its cliff
+  at M = 10) and PLS directions; §6.4's 19-point least squares table and all
+  of `CH06_HD`'s medians. Readouts are compared as the exact strings the
+  reader sees, and the reference implementations share no code with the
+  browser.
+
 ## Next
 
-Ask for a chapter by name. Chapters 1–5 are built; **Chapter 6 (Model
-Selection & Regularization) is the natural next one**. For a new chapter:
+Ask for a chapter by name. Chapters 1–6 are built; **Chapter 7 (Moving
+Beyond Linearity) is the natural next one**. For a new chapter:
 extract its `_text/chNN.txt`, add its `sections` to `assets/js/nav.js`,
 copy reusable demos from `10days_islp/site/assets/js/demos/`, write its new
 demos, capture lab and exercise outputs with a `tools/labNN_capture.py` /

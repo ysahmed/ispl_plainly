@@ -1,0 +1,442 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>6.4 · Considerations in High Dimensions — ISLP Plainly</title>
+<meta name="description" content="ISLP section 6.4 in plain language: what makes a data set high-dimensional, why least squares has no unique answer once p reaches n, why R² = 1 and a training MSE of zero prove nothing, why C_p, AIC and BIC cannot be computed here, the curse of dimensionality, and the rules for reporting a high-dimensional result. Two live demos rebuild the book's Figures 6.23 and 6.24 on our own simulated data.">
+<link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css">
+<link rel="stylesheet" href="assets/css/style.css">
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/contrib/auto-render.min.js"></script>
+<script defer src="assets/js/plots.js"></script>
+<script defer src="assets/js/nav.js"></script>
+<script defer src="assets/data/ch06-data.js"></script>
+<script defer src="assets/js/stats.js"></script>
+<script defer src="assets/js/demos/hd-noise.js"></script>
+<script defer src="assets/js/demos/hd-lasso.js"></script>
+<script defer src="assets/js/common.js"></script>
+</head>
+<body>
+
+<a class="skip-link" href="#main">Skip to content</a>
+
+<header class="topbar">
+  <button class="icon-btn" data-sidebar-toggle aria-label="Open navigation menu" aria-controls="sidebar">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 6h16M4 12h16M4 18h16"/></svg>
+  </button>
+  <span class="topbar-title">6.4 · Considerations in High Dimensions</span>
+</header>
+
+<div class="app">
+
+  <!-- ======================= sidebar ======================= -->
+  <aside class="sidebar" id="sidebar">
+    <div class="brand">
+      <span class="logo">∑</span>
+      <a href="index.html">ISLP Plainly</a>
+    </div>
+
+    <nav class="side-nav" aria-label="Site navigation"></nav>
+
+    <div class="side-foot">
+      <button class="theme-btn" data-theme-toggle type="button">
+        <svg class="sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2m0 16v2M4.9 4.9l1.4 1.4m11.4-11.4 1.4 1.4M2 12h2m16 0h2M19.1 4.9l-1.4 1.4M4.9 19.1l-1.4 1.4"/></svg>
+        <svg class="moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg>
+        <span class="theme-label">Dark mode</span>
+      </button>
+    </div>
+  </aside>
+
+  <!-- ======================= main ======================= -->
+  <main id="main">
+
+    <div class="page-head">
+      <p class="eyebrow">Chapter 6 · section 6.4 · book pages 263–267</p>
+      <h1>Considerations in high dimensions</h1>
+      <p class="lede">Sections 6.1 to 6.3 all assumed there are more rows than
+        predictors. Section 6.4 takes that away, and the ground goes fast:
+        once the number of features reaches the number of observations, least
+        squares stops being a method that overfits and becomes a method with
+        no unique answer at all. The two demos below are the book's Figures
+        6.23 and 6.24 rebuilt on data of our own — one turns a model made
+        entirely of noise features into a perfect fit, the other shows what
+        cross-validation does about it when 2,000 features stand behind 100
+        rows.</p>
+    </div>
+
+    <section id="reading">
+      <h2>Reading</h2>
+      <ul class="reading">
+        <li><span class="r-label">Read</span>
+          <span class="r-body">Section 6.4 in full (pp. 263–267). It is the
+            shortest section in the chapter and the only one that is mostly
+            about what you must not do: four subsections, a definition, two
+            figures and a list of the words that stop being
+            meaningful.</span></li>
+        <li><span class="r-label">Skim</span>
+          <span class="r-body">The captions of Figures 6.23 and 6.24. Each one
+            is the whole argument in three sentences; the pages that follow
+            unpack what the picture already shows.</span></li>
+        <li><span class="r-label">Then</span>
+          <span class="r-body">Equation (6.2) from section 6.1.3 once more.
+            The σ̂² that C<sub>p</sub>, AIC and BIC all divide by is exactly the
+            quantity 6.4.2 says you cannot estimate here, so it is worth
+            knowing where it came from before you are told it is gone.</span>
+        </li>
+      </ul>
+
+      <div class="keybox">
+        <p class="keybox-title">Key ideas</p>
+        <p>Everything so far took <em>p</em> &lt; <em>n</em> as given; 6.4 takes
+          it away and shows the failure is not a gradual worsening. At
+          <em>p</em> = <em>n</em> the normal equations have a perfect fit that
+          is unique only by luck, and one predictor short of that they have a
+          perfect fit and no reason at all to prefer it over the infinitely
+          many others. R² = 1 and a training MSE of zero become automatic,
+          which means neither is evidence of anything — and the rulers from
+          6.1.3 break too, because they all divide by σ̂², which has no
+          denominator left. The section's good news is that the less flexible
+          methods of sections 6.1 to 6.3 are exactly the right tools, since
+          they refuse to fit as hard as they are able. Its rule about language
+          is blunt: with <em>p</em> &gt; <em>n</em> you may never quote a
+          training R², an SSE or a p-value, and the only honest scorecards
+          left are an independent test set or cross-validation.</p>
+      </div>
+
+      <h3>What you will know afterwards</h3>
+      <ul class="chips">
+        <li class="chip">&ldquo;high-dimensional&rdquo; means more features than observations</li>
+        <li class="chip">why the worry starts before p reaches n</li>
+        <li class="chip">at p ≥ n a perfect fit is automatic, so it says nothing</li>
+        <li class="chip">why C<sub>p</sub>, AIC and BIC cannot be computed here</li>
+        <li class="chip">adjusted R² can be exactly 1 too</li>
+        <li class="chip">the curse of dimensionality: more features, worse model</li>
+        <li class="chip">noise features carry cost and no upside</li>
+        <li class="chip">with p &gt; n, every variable is a combination of the rest</li>
+        <li class="chip">the scorecards you are still allowed to use</li>
+      </ul>
+    </section>
+
+    <section id="highdim">
+      <h2>1. What counts as high-dimensional</h2>
+
+      <p>The book's definition is one sentence long: <em>data sets containing
+        more features than observations are often referred to as
+        high-dimensional</em>. It is worth noticing what that definition is
+        not. It is not a statement about how many features are a lot. A model
+        with four hundred features and ten thousand patients is a large model
+        in a small problem. What matters is the ratio, and specifically
+        whether <em>p</em> has caught up with <em>n</em>.</p>
+
+      <p>Two examples in the section make the scale concrete. Collecting half a
+        million single-nucleotide polymorphisms for a blood-pressure study
+        gives <em>n</em> ≈ 200 and <em>p</em> ≈ 500,000 — two hundred and fifty
+        measurements per person. Treating every search term a user has ever
+        typed as a feature gives a similar picture: a few hundred or a few
+        thousand consenting users, each scored present or absent on an
+        enormous vocabulary. In both cases the expensive thing to collect is
+        a person, and the cheap thing to collect is another feature.</p>
+
+      <p>Then comes the part that makes the section apply to ordinary work. The
+        book says the considerations it is about to raise &ldquo;certainly
+        also apply if <em>p</em> is slightly smaller than <em>n</em>, and are
+        best always kept in mind when performing supervised learning.&rdquo;
+        The boundary <em>p</em> = <em>n</em> is where the mathematics changes
+        character, not where the trouble starts.</p>
+
+      <p>Figure 6.22 is the picture that pins the idea down. Its left panel is
+        the familiar case: one feature, an intercept, twenty observations, and
+        a line that passes through the cloud as well as it can without
+        touching most of the points. Its right panel is the same one feature
+        and the same intercept with only two observations, and there the line
+        goes exactly through both, always, whatever the data. Both panels are
+        a valid least squares fit. The difference is that the left one has to
+        compromise and the right one does not — and a fit that never has to
+        compromise has learned nothing that generalises.</p>
+
+      <div class="callout">
+        <p class="callout-title">p ≥ n is not overfitting, it is an
+          underdetermined system</p>
+        <p>Section 6.1 warned that a flexible model overfits because it has
+          enough freedom to chase the noise. That is a warning about degree.
+          At <em>p</em> ≥ <em>n</em> something sharper happens: the book's own
+          phrasing is that least squares &ldquo;cannot (or rather, should
+          not) be performed&rdquo;, because it will always produce estimates
+          with zero residuals regardless of whether any relationship exists.
+          The problem is no longer that a wrong answer is likely. It is that
+          the question no longer has one right answer to be wrong about.</p>
+      </div>
+    </section>
+
+    <section id="wrong">
+      <h2>2. What goes wrong, and how quickly</h2>
+
+      <p>The book's recipe for Figure 6.23 is deliberately unkind: simulate
+        twenty observations, then run least squares with between one and
+        twenty features, <em>every one of which is completely unrelated to the
+        response</em>. There is no signal to find. The three panels report
+        training R², training MSE, and the MSE on an independent test set.</p>
+
+      <p>The first two panels go where the algebra says they must. R² climbs to
+        1 as features are added and the training MSE falls to 0, and this
+        happens for the same reason it happened with two observations in
+        Figure 6.22: past a certain point the model has more free parameters
+        than there are rows to constrain them, so it can hit every point.
+        Neither curve is a measurement of anything.</p>
+
+      <p>The third panel is the measurement. Test MSE — scored on two thousand
+        rows that were never used for fitting — climbs as features are added,
+        because each new coefficient is fitted to a specific wobble in
+        twenty rows and carries that wobble out into the world. The book's
+        recommendation at the end of the passage is worth quoting exactly:
+        <em>we recommend always evaluating model performance on an independent
+        test set.</em></p>
+
+      <figure class="demo" id="demo-hd-noise">
+        <div class="demo-body grid2" style="grid-template-columns:repeat(auto-fit,minmax(220px,1fr))">
+          <canvas id="hd-r2c"></canvas>
+          <canvas id="hd-trc"></canvas>
+          <canvas id="hd-tec"></canvas>
+        </div>
+        <div class="demo-controls">
+          <span class="ctrl">
+            <label for="hd-p">features p</label>
+            <input type="range" id="hd-p" min="1" max="19" step="1" value="6">
+          </span>
+          <span class="ro" id="hd-n">…</span>
+          <span class="ro" id="hd-r2">…</span>
+          <span class="ro" id="hd-tr">…</span>
+          <span class="ro" id="hd-te">…</span>
+          <span class="ro" id="hd-sg">…</span>
+        </div>
+        <figcaption><strong>Play with it:</strong> the book's Figure 6.23,
+          recomputed as the page loads from <em>our</em> simulated data —
+          twenty training rows, twenty features, a response that is nothing
+          but noise plus an intercept, and an independent test set of two
+          thousand rows drawn the same way from seed 263. There are no
+          predictors to find here, so every feature the slider adds is noise.
+          Drag it right and watch the three panels disagree: training R² rises
+          from 0.032 to exactly 1.000, training MSE falls from 1.11 to
+          4.6&thinsp;×&thinsp;10<sup>−28</sup> — a rounding error away from
+          zero — and the test MSE climbs from 1.11 to 35.32, about
+          thirty-two times worse than the one-feature model. We stop at
+          nineteen because with twenty rows that is the last size at which the
+          system still has a unique answer; the book draws its panel on to
+          twenty, where twenty-one parameters meet twenty observations and
+          even that goes away. The residual-degrees-of-freedom readout is the
+          one to watch at the far right.</figcaption>
+      </figure>
+
+      <p>Notice what the last readout says at nineteen features, and why it
+        matters beyond this one demo. Section 6.1.3's three rulers all depend
+        on the residual variance estimate σ̂², and that estimate is a ratio:</p>
+
+      $$\hat{\sigma}^2 \;=\; \frac{\mathrm{RSS}}{n - p - 1}$$
+
+      <p>At nineteen features on twenty rows the denominator is zero, and the
+        numerator is zero beside it. The book notes the fully
+        high-dimensional case directly: &ldquo;the formula for σ̂² from
+        Chapter 3 yields an estimate σ̂² = 0 in this setting.&rdquo; So
+        C<sub>p</sub>, AIC and BIC &ldquo;are not appropriate in the
+        high-dimensional setting, because estimating σ̂² is
+        problematic&rdquo;, and adjusted R² has the mirror-image failure:
+        one can easily obtain a model with an adjusted R² of exactly 1. Every
+        ruler from section 6.1.3 was built on the assumption that there are
+        leftover observations to learn the noise level from, and there are
+        none.</p>
+
+      <div class="callout">
+        <p class="callout-title">R² = 1 is not a result</p>
+        <p>The dangerous part is not that the model is bad. It is that the
+          model reports itself as perfect in the same language a good model
+          would use. R² = 1 and a training MSE of zero are what you get when
+          you have run out of constraints, and they are available to anyone
+          who adds enough columns — which is why section 6.4.4 ends by
+          removing them from the list of things you are allowed to report.
+          The test panel in the demo above is the only one of the three that
+          is talking about the world.</p>
+      </div>
+    </section>
+
+    <section id="repair">
+      <h2>3. How much of it the less flexible methods fix</h2>
+
+      <p>Section 6.4.3's answer is short and it is the point of the whole
+        chapter: forward stepwise selection, ridge regression, the lasso and
+        principal components regression &ldquo;are particularly useful for
+        performing regression in the high-dimensional setting&rdquo;, because
+        they &ldquo;avoid overfitting by using a less flexible fitting
+        approach than least squares.&rdquo; The chapter's methods were never
+        designed for this case; they just happen to be the right shape for
+        it, because each one refuses to spend every degree of freedom it is
+        offered.</p>
+
+      <p>How well do they do? Figure 6.24 answers with the lasso on three
+        simulated problems — <em>p</em> = 20, 50 or 2,000 features, twenty of
+        them real, on 100 training observations — scored on an independent
+        test set, and the book draws three conclusions out of it:
+        regularisation plays a key role in high-dimensional problems;
+        choosing the tuning parameter well is crucial; and test error tends
+        to rise as dimensionality rises unless the extra features are
+        genuinely associated with the response.</p>
+
+      <p>That third one is what the book names the <strong>curse of
+        dimensionality</strong>. The natural instinct — more measurements
+        should mean a better model — is wrong for the features that carry no
+        information: they raise the dimensionality, they may pick up chance
+        associations with the training response and be handed non-zero
+        coefficients for it, and they deliver no upside in exchange. New
+        measurement technology is described as a double-edged sword for exactly
+        this reason.</p>
+
+      <figure class="demo" id="demo-hd-lasso">
+        <div class="demo-body grid2" style="grid-template-columns:repeat(auto-fit,minmax(220px,1fr))">
+          <canvas id="hd2-c20"></canvas>
+          <canvas id="hd2-c50"></canvas>
+          <canvas id="hd2-c2000"></canvas>
+        </div>
+        <div class="demo-controls">
+          <span class="ctrl">
+            <label for="hd2-p">features p</label>
+            <input type="range" id="hd2-p" min="0" max="2" step="1" value="1">
+          </span>
+          <span class="ro" id="hd2-pread">…</span>
+          <span class="ro" id="hd2-which">…</span>
+          <span class="ro" id="hd2-df">…</span>
+          <span class="ro" id="hd2-mse">…</span>
+          <span class="ro" id="hd2-beat">…</span>
+        </div>
+        <figcaption><strong>Play with it:</strong> our version of Figure 6.24,
+          on <em>our</em> simulation — 100 training rows and 1,000 test rows
+          per replicate, the first twenty features carrying ±0.25 against
+          noise of standard deviation 1, and 100 replicates at each of
+          <em>p</em> = 20, 50 and 2,000, shipped as <code>CH06_HD</code>. The
+          book sweeps three tuning parameters and draws a boxplot at each; we
+          do what a practitioner does instead and let ten-fold
+          cross-validation pick λ inside each replicate, then plot the
+          degrees of freedom it landed on — the count of non-zero
+          coefficients — against the test MSE, with a dashed green line at the
+          median test MSE of the model that ignores every feature. Drag the
+          slider and the three panels trade places. With <em>p</em> = 20
+          cross-validation never shrinks anything: median df 20 out of 20,
+          test MSE 1.260 against 2.280 for the intercept only. With
+          <em>p</em> = 50 it starts pulling coefficients out — median df 32 of
+          50 — and the test MSE rises to 1.575. With <em>p</em> = 2,000 it
+          pulls almost everything out, median df 13.5 of 2,000, and still
+          beats the intercept-only model in only 72 of the 100 replicates.
+          The three medians, 1.260, 1.575 and 2.250, are the book's own point
+          in numbers: as the number of features increases, the test set error
+          increases, by a factor of 1.8 from <em>p</em> = 20 to
+          <em>p</em> = 2,000.</figcaption>
+      </figure>
+
+      <p class="table-note">A difference between ours and the book's worth
+        naming. Figure 6.24 reports three fixed tuning parameters per panel
+        and reads the answer off where the boxes are lowest; ours reports the
+        one λ that ten-fold cross-validation actually chose, once per
+        replicate, which is the decision a person with this data would have to
+        make. The conclusions match — least shrinkage wins at
+        <em>p</em> = 20, real shrinkage at <em>p</em> = 50, and nothing much
+        helps at <em>p</em> = 2,000 — but they are two different experiments
+        and we would rather say so than quietly substitute one for the
+        other.</p>
+
+      <div class="callout">
+        <p class="callout-title">Adding features is a trade, not a free
+          win</p>
+        <p>Section 6.4.3 states the rule in one line: extra features that are
+          genuinely associated with the response reduce test error, and extra
+          noise features raise it. Both halves matter, because they mean the
+          direction of the effect is set by the relevance of what you
+          measured, not by how much of it you measured. And even when the
+          features are relevant, the variance of fitting their coefficients
+          can outweigh the reduction in bias they bring — the same trade-off
+          as section 2.4, played at a scale where it decides the outcome
+          before any tuning begins.</p>
+      </div>
+    </section>
+
+    <section id="report">
+      <h2>4. What you are allowed to say about the result</h2>
+
+      <p>The last subsection is about language, and it is the part most likely
+        to change what you write down. When <em>p</em> &gt; <em>n</em>, the
+        book points out, multicollinearity stops being an inconvenience and
+        becomes total: &ldquo;any variable in the model can be written as a
+        linear combination of all of the other variables in the model.&rdquo;
+        Which means you can never establish exactly which variables are
+        genuinely predictive, and never identify a unique best set of
+        coefficients. At most you can hope to put large coefficients on
+        variables that are correlated with the ones that really matter.</p>
+
+      <p>The worked example makes the consequence concrete. Suppose forward
+        stepwise selection picks 17 SNPs out of half a million for predicting
+        blood pressure. It would be wrong to conclude those 17 SNPs predict
+        blood pressure better than the other 499,983 — there are likely to be
+        many sets of 17 that predict just as well, and run the same procedure
+        on an independent sample and you would probably get a different set,
+        possibly a non-overlapping one. That does not make the model useless;
+        it makes the model one candidate among many, and it must be validated
+        on independent data before anyone builds on it.</p>
+
+      <p>Then the rule, stated without hedging: since it is easy to obtain a
+        useless model with zero residuals, &ldquo;one should never use sum of
+        squared errors, p-values, R² statistics, or other traditional measures
+        of model fit on the training data as evidence of a good model fit in
+        the high-dimensional setting.&rdquo; Reporting R² = 1 in that setting
+        is described as actively misleading — it sounds like a statistically
+        valid model and is no evidence at all. What replaces it: an independent
+        test set, or cross-validation errors. The demo two sections above is
+        the shape of that replacement, and the difference between its three
+        panels is exactly why.</p>
+
+      <div class="callout ok">
+        <p class="callout-title">Section 6.4 in one line</p>
+        <p>When there are more features than rows, least squares fits perfectly
+          by construction, so its perfect fit, its R², its residuals and its
+          p-values all stop carrying information, and σ̂² — the quantity the
+          rulers of section 6.1.3 divide by — has no denominator left. The
+          remedy is the rest of the chapter: fit less flexibly, choose the
+          amount of shrinkage by cross-validation, and report the score on
+          data the model has never seen. Section 6.4.4 adds the last clause:
+          be careful what you claim about <em>which</em> variables, because with
+          <em>p</em> &gt; <em>n</em> the data cannot tell you.</p>
+      </div>
+    </section>
+
+    <footer style="margin-top:64px;font-size:13.5px;color:var(--muted);">
+      <p class="further">Source: ISLP, Section 6.4 (pp. 263–267). Both demos
+        simulate their own data, and both say so in the caption: the first is
+        twenty training rows and two thousand test rows of pure noise from a
+        stated seed, fitted by least squares live in the browser for every
+        value of p on the slider; the second reads <code>CH06_HD</code>,
+        which holds 100 replicates at each of three feature counts, each
+        replicate a degrees-of-freedom count, a test MSE and an intercept-only
+        test MSE, generated in <code>tools/ch06_data.py</code> with ten-fold
+        cross-validation picking the tuning parameter inside the training set.
+        The book's own Figure 6.24 uses a different design — three fixed
+        tuning parameters rather than a cross-validated choice — and the
+        figures are not comparable line for line; what is quoted from the book
+        is quoted from its text, and everything stated about our data is
+        computed as the page loads.</p>
+      <p>ISLP Plainly — <span data-year>2026</span></p>
+    </footer>
+  </main>
+
+  <!-- ======================= page TOC ======================= -->
+  <details class="page-toc" id="page-toc" open>
+    <summary>On this page</summary>
+    <p class="toc-title">On this page</p>
+    <nav aria-label="Table of contents">
+      <ol></ol>
+    </nav>
+  </details>
+
+</div>
+
+<div class="scrim" id="scrim"></div>
+
+</body>
+</html>

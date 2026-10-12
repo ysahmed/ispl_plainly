@@ -42,7 +42,12 @@
       { href: '5-1-cross-validation.html', num: '5.1', label: 'Cross-Validation' },
       { href: '5-2-the-bootstrap.html', num: '5.2', label: 'The Bootstrap' }
     ] },
-    { n: 6, title: 'Model selection and regularization', read: 'pp. 229–288', sections: [] },
+    { n: 6, title: 'Model selection and regularization', read: 'pp. 229–288', sections: [
+      { href: '6-1-subset-selection.html', num: '6.1', label: 'Subset selection' },
+      { href: '6-2-shrinkage-methods.html', num: '6.2', label: 'Shrinkage methods' },
+      { href: '6-3-dimension-reduction-methods.html', num: '6.3', label: 'Dimension reduction methods' },
+      { href: '6-4-considerations-in-high-dimensions.html', num: '6.4', label: 'Considerations in high dimensions' }
+    ] },
     { n: 7, title: 'Moving beyond linearity', read: 'pp. 289–330', sections: [] },
     { n: 8, title: 'Tree-based methods', read: 'pp. 331–366', sections: [] },
     { n: 9, title: 'Support vector machines', read: 'pp. 367–398', sections: [] },

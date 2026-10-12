@@ -1,0 +1,546 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>6.2 · Shrinkage Methods — ISLP Plainly</title>
+<meta name="description" content="ISLP section 6.2 in plain language: ridge regression and the lasso, what the two penalties do differently, proportional shrinkage versus soft-thresholding, and how cross-validation picks λ. Five live demos draw the coefficient paths, the constraint geometry, the soft-threshold operator, and two cross-validation curves computed in your browser.">
+<link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css">
+<link rel="stylesheet" href="assets/css/style.css">
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/contrib/auto-render.min.js"></script>
+<script defer src="assets/js/plots.js"></script>
+<script defer src="assets/js/nav.js"></script>
+<script defer src="assets/data/ch03-data.js"></script>
+<script defer src="assets/data/ch06-data.js"></script>
+<script defer src="assets/js/stats.js"></script>
+<script defer src="assets/js/demos/shrink-path.js"></script>
+<script defer src="assets/js/demos/shrink-geometry.js"></script>
+<script defer src="assets/js/demos/shrink-soft.js"></script>
+<script defer src="assets/js/demos/shrink-ridge-cv.js"></script>
+<script defer src="assets/js/demos/shrink-sparse.js"></script>
+<script defer src="assets/js/common.js"></script>
+</head>
+<body>
+
+<a class="skip-link" href="#main">Skip to content</a>
+
+<header class="topbar">
+  <button class="icon-btn" data-sidebar-toggle aria-label="Open navigation menu" aria-controls="sidebar">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 6h16M4 12h16M4 18h16"/></svg>
+  </button>
+  <span class="topbar-title">6.2 · Shrinkage Methods</span>
+</header>
+
+<div class="app">
+
+  <!-- ======================= sidebar ======================= -->
+  <aside class="sidebar" id="sidebar">
+    <div class="brand">
+      <span class="logo">∑</span>
+      <a href="index.html">ISLP Plainly</a>
+    </div>
+
+    <nav class="side-nav" aria-label="Site navigation"></nav>
+
+    <div class="side-foot">
+      <button class="theme-btn" data-theme-toggle type="button">
+        <svg class="sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2m0 16v2M4.9 4.9l1.4 1.4m11.4-11.4 1.4 1.4M2 12h2m16 0h2M19.1 4.9l-1.4 1.4M4.9 19.1l-1.4 1.4"/></svg>
+        <svg class="moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg>
+        <span class="theme-label">Dark mode</span>
+      </button>
+    </div>
+  </aside>
+
+  <!-- ======================= main ======================= -->
+  <main id="main">
+
+    <div class="page-head">
+      <p class="eyebrow">Chapter 6 · section 6.2 · book pages 241–253</p>
+      <h1>Shrinkage methods</h1>
+      <p class="lede">Section 6.1 threw predictors away to control variance.
+        Section 6.2 keeps all of them and does something subtler: keep every
+        predictor, but refuse to trust any coefficient fully — add a penalty
+        that rewards coefficients for being small, and let one number, λ, decide
+        how much to trust the data. Two penalties are on offer. Squared
+        coefficients give <strong>ridge</strong>, which shrinks everything by the
+        same proportion and never deletes anything. Absolute coefficients give
+        the <strong>lasso</strong>, which subtracts the same amount from
+        everything and deletes the small ones outright. The five demos below
+        draw both paths, the geometry that explains them, the operator behind
+        soft-thresholding, and two cross-validation curves computed live.</p>
+    </div>
+
+    <section id="reading">
+      <h2>Reading</h2>
+      <ul class="reading">
+        <li><span class="r-label">Read</span>
+          <span class="r-body">Section 6.2 in full (pp. 241–253). Three
+            subsections: ridge, the lasso, and choosing λ. The geometry and the
+            Bayesian aside are the parts that make the rest of the chapter
+            make sense.</span></li>
+        <li><span class="r-label">Skim</span>
+          <span class="r-body">6.2.2's Bayesian interpretation (the Gaussian
+            and Laplace priors, Figure 6.11). It is the shortest path to an
+            intuition for <em>why</em> one penalty deletes and the other does
+            not — but you can skip it and still follow everything else.</span></li>
+        <li><span class="r-label">Then</span>
+          <span class="r-body">Section 6.3, which gives up on the original
+            predictors altogether and builds a smaller set of new ones from
+            their combinations — the third way to fight the same variance
+            problem.</span></li>
+      </ul>
+
+      <div class="keybox">
+        <p class="keybox-title">Key ideas</p>
+        <p>Ridge and the lasso fit <strong>all p predictors</strong> at once, but
+          solve <em>min RSS + λ × (a penalty on the coefficients)</em> instead of
+          plain least squares. Ridge's penalty is <strong>λ Σβ<sub>j</sub>²</strong>
+          — an ℓ<sub>2</sub> penalty — which shrinks every coefficient toward zero
+          by the same <em>proportion</em> and never sets any exactly to zero. The
+          lasso's penalty is <strong>λ Σ|β<sub>j</sub>|</strong> — an
+          ℓ<sub>1</sub> penalty — which subtracts the same <em>amount</em> from
+          every coefficient, wiping out any that fall inside the dead zone. That
+          one difference is the whole story: ridge gives you a dense, shrunk
+          model; the lasso gives you a <strong>sparse</strong> one and does
+          variable selection as a side effect. λ is chosen by cross-validation,
+          exactly like the model size was in section 6.1.</p>
+      </div>
+
+      <h3>What you will know afterwards</h3>
+      <ul class="chips">
+        <li class="chip">why shrinking reduces variance at the price of bias</li>
+        <li class="chip">ridge = RSS + λ Σβ², lasso = RSS + λ Σ|β|</li>
+        <li class="chip">why the predictors must be standardised first</li>
+        <li class="chip">ridge never zeroes a coefficient; the lasso does</li>
+        <li class="chip">the same picture as a constraint, not just a penalty</li>
+        <li class="chip">proportional shrinkage vs soft-thresholding</li>
+        <li class="chip">why soft-thresholding is what buys sparsity</li>
+        <li class="chip">picking λ with CV, and the wide, flat minimum</li>
+        <li class="chip">when lasso wins, when ridge wins — neither always</li>
+      </ul>
+    </section>
+
+    <section id="idea">
+      <h2>1. Why shrink at all</h2>
+
+      <p>Least squares has no opinions. It picks whatever coefficients fit the
+        training data best, and if a predictor happens to look useful by luck,
+        least squares will happily give it a large coefficient. With many
+        predictors — or correlated ones — that luck-driven variance is exactly
+        what ruins predictions on new data.</p>
+
+      <p>Shrinkage is the fix. The book puts it plainly: instead of choosing a
+        subset and fitting it exactly, we "fit a model containing all p
+        predictors using a technique that constrains or regularizes the
+        coefficient estimates", and it states the payoff in one sentence —
+        "shrinking the coefficient estimates can significantly reduce their
+        variance." The cost is bias: a shrunken coefficient is systematically
+        too close to zero. The trade is only worth it when the variance you buy
+        back exceeds the bias you pay, which is why λ has to be chosen rather
+        than guessed.</p>
+
+      <div class="callout">
+        <p class="callout-title">Two ways to say the same thing</p>
+        <p>The book writes shrinkage twice on purpose: as a <strong>penalty</strong>
+          added to the RSS, and as a <strong>constraint</strong> imposed on the
+          coefficients. "For every value of λ, there is some s such that"
+          the two forms "give the same" estimates. The penalty form is what you
+          optimise; the constraint form is what you can see — which is why the
+          geometry demo in section 3 is drawn as a budget you cannot exceed.</p>
+      </div>
+    </section>
+
+    <section id="ridge-lasso">
+      <h2>2. Ridge and the lasso</h2>
+
+      <p><strong>Ridge regression</strong> adds a penalty of λ times the sum of
+        <em>squared</em> coefficients. Small coefficients are cheap; large ones
+        are expensive, quadratically so.</p>
+
+      $$\text{ridge} \;=\; \mathrm{RSS} \;+\; \lambda \sum_{j=1}^{p} \beta_j^2
+        \qquad(6.5)$$
+
+      <p>The book warns that the answer depends on the scale of each predictor,
+        so ridge and lasso are always run on <strong>standardised</strong>
+        columns — centred and divided by their standard deviation — before the
+        penalty is applied. That is equation (6.6), and it is why every
+        coefficient picture in this section is on a common, unitless scale.</p>
+
+      $$\tilde{x}_{ij} \;=\; \frac{x_{ij} - \bar{x}_j}{s_j} \qquad(6.6)$$
+
+      <p><strong>The lasso</strong> is identical except that squares become
+        absolute values:</p>
+
+      $$\text{lasso} \;=\; \mathrm{RSS} \;+\; \lambda \sum_{j=1}^{p}
+        |\beta_j| \qquad(6.7)$$
+
+      <p>"Comparing (6.7) to (6.5), we see that the lasso and ridge regression
+        have similar formulations. The only difference is that the
+        β<sub>j</sub>² term … has been replaced by |β<sub>j</sub>|." The book
+        calls these the ℓ<sub>2</sub> and ℓ<sub>1</sub> penalties, and the
+        consequences of that one-character difference are enormous: ridge "will
+        shrink all of the coefficients towards zero, but it will not set any of
+        them exactly to zero (unless λ = ∞)", while the lasso "has the effect of
+        forcing some of the coefficient estimates to be exactly equal to zero
+        when the tuning parameter λ is sufficiently large."</p>
+
+      <figure class="demo" id="demo-shrink-path">
+        <div class="demo-body grid2">
+          <canvas id="sp-path"></canvas>
+        </div>
+        <div class="demo-controls">
+          <button class="btn" id="sp-ridge" type="button">ridge</button>
+          <button class="btn primary" id="sp-lasso" type="button">lasso</button>
+          <button class="btn" id="sp-axis" type="button">x = λ</button>
+          <span class="ctrl">
+            <label for="sp-lam">λ</label>
+            <input type="range" id="sp-lam" min="0" max="39" step="1" value="0">
+          </span>
+          <span class="ro" id="sp-lambda">…</span>
+          <span class="ro" id="sp-shrink">…</span>
+          <span class="ro" id="sp-nz">…</span>
+          <span class="ro" id="sp-read">…</span>
+        </div>
+        <figcaption><strong>Play with it:</strong> the book's Figures 6.4 and
+          6.6 — the same eleven Credit predictors under each penalty, drawn
+          against λ. The λ slider travels with the horizontal axis: drag right
+          for more shrinkage. Press <em>ridge</em> and <em>lasso</em> to swap
+          panels — ridge's counter never leaves <em>all 11</em>, while the
+          lasso's falls one predictor at a time until it reads 0 of 11 at the
+          far right. Watch <em>where</em> they drop out: for λ between about
+          18,600 and 37,900 — which is where the panel opens — the lasso model
+          holds exactly Income, Limit, Rating and Student, the four the book
+          names as "the most important variables" in Credit, and the readout
+          says <em>4 of 11</em>. The dashed line marks the λ that minimises
+          ten-fold cross-validation over this grid; it sits at the far left
+          edge, at the smallest λ computed, with all eleven predictors still
+          in — on this data the CV curve is still falling there, so CV wants
+          <em>less</em> shrinkage than any λ on the grid, not a sparser model.
+          The shrinkage readout uses the book's own indexing,
+          ‖β̂<sub>λ</sub>‖<sub>2</sub>/‖β̂‖<sub>2</sub> for ridge and
+          ‖β̂<sub>λ</sub>‖<sub>1</sub>/‖β̂‖<sub>1</sub> for the lasso, running
+          from 1 down to 0; press <em>x = λ</em> to put that index on the
+          horizontal axis instead (the slider follows the marker either way).
+          Those four curves are emphasised for the book's own reason: Figure
+          6.4 draws "the income, limit, rating, and student variables … in
+          distinct colors, since these variables tend to have by far the
+          largest coefficient estimates". As you drag, two things stand out —
+          the ridge lines fan out smoothly together while the lasso lines snap
+          to zero one at a time, and Limit and Rating trade places: Rating is
+          the larger of the two under strong shrinkage and Limit overtakes it
+          as λ falls. The book anticipates that non-monotonicity, at least for
+          ridge: "individual coefficients, such as rating and income, may
+          occasionally increase as λ increases."</figcaption>
+      </figure>
+
+      <div class="callout">
+        <p class="callout-title">The one-character difference</p>
+        <p>Both penalties are smallest at the origin, so both pull coefficients
+          toward zero. But a square grows faster the further you move, so the
+          ℓ<sub>2</sub> penalty punishes a single large coefficient far more
+          heavily than several moderate ones — ridge would rather spread the
+          fit around than let anything get big. The ℓ<sub>1</sub> penalty grows
+          <em>linearly</em>, so near zero it is steep enough that a coefficient
+          sitting a hair below the threshold gains nothing by being nudged
+          across it. That flat spot at the origin is why the lasso can leave a
+          coefficient exactly at zero, and ridge cannot.</p>
+      </div>
+    </section>
+
+    <section id="geometry">
+      <h2>3. What the two penalties actually do</h2>
+
+      <p>The cleanest way to see the difference is to stop thinking of the
+        penalty as a term in an equation and start thinking of it as a
+        <strong>budget</strong>. Minimising RSS subject to a limit on the
+        coefficients is the same problem:</p>
+
+      $$\min \ \mathrm{RSS} \quad \text{subject to} \quad
+        \sum_{j=1}^{p} |\beta_j| \le s \qquad(6.8)$$
+
+      $$\min \ \mathrm{RSS} \quad \text{subject to} \quad
+        \sum_{j=1}^{p} \beta_j^{2} \le s \qquad(6.9)$$
+
+      <p>Now the answer is a picture: the RSS is a set of ellipses centred on the
+        least-squares estimate, and the constraint is a shape you are not
+        allowed to leave. The best feasible coefficients are where the smallest
+        ellipse you can reach just touches that shape. Figure 6.7 draws exactly
+        this, and the two shapes are the whole difference — a
+        <strong>diamond</strong> for the lasso, a <strong>circle</strong> for
+        ridge.</p>
+
+      <figure class="demo" id="demo-shrink-geo">
+        <div class="demo-body grid2">
+          <canvas id="sg-canvas"></canvas>
+        </div>
+        <div class="demo-controls">
+          <button class="btn primary" id="sg-lasso" type="button">lasso</button>
+          <button class="btn" id="sg-ridge" type="button">ridge</button>
+          <span class="ctrl">
+            <label for="sg-s">s</label>
+            <input type="range" id="sg-s" min="0.05" max="3" step="0.01" value="0.6">
+          </span>
+          <span class="ro" id="sg-sread">…</span>
+          <span class="ro" id="sg-rss">…</span>
+          <span class="ro" id="sg-zero">…</span>
+        </div>
+        <figcaption><strong>Play with it:</strong> the book's Figure 6.7, live,
+          on two real Credit predictors — Limit on the x-axis, Rating on the
+          y-axis, both standardised. The blue shape is the constraint region and
+          the red dashed ellipse is the RSS contour touching it; the red dot is
+          the estimate that constraint allows. Drag <em>s</em> to tighten or
+          loosen the budget and watch the ellipse shrink toward the least-squares
+          point. Then swap between <em>lasso</em> and <em>ridge</em> at the same
+          s: the circle slides the estimate smoothly inward along the line
+          toward the origin, while the diamond's straight edges and sharp
+          corners can pin the solution onto an axis. The readout says so
+          directly — at the default budget the lasso reads "zeroed: β₁", because
+          the diamond's corner sits exactly on the β₁ = 0 axis, and the RSS
+          readout tells you how much fit you are paying for that constraint.</figcaption>
+      </figure>
+
+      <p>That is the geometric reason, but it is worth having the arithmetic
+        version too, because it is the one that shows up in every lasso
+        implementation. For the idealised case where the predictors are
+        uncorrelated and standardised, both penalties collapse to closed forms.
+        Ridge gives</p>
+
+      $$\hat{\beta}_j^{R} \;=\; \frac{y_j}{1 + \lambda} \qquad(6.14)$$
+
+      <p>— every coefficient divided by the same factor, so the estimate is
+        always a fixed <em>fraction</em> of the least-squares one. The lasso
+        gives</p>
+
+      $$\hat{\beta}_j^{L} \;=\;
+        \begin{cases}
+          y_j - \lambda/2 & y_j > \lambda/2\\
+          y_j + \lambda/2 & y_j < -\lambda/2\\
+          0 & |y_j| \le \lambda/2
+        \end{cases}
+        \qquad(6.15)$$
+
+      <p>— every coefficient reduced by the same <em>amount</em>, λ/2, and set
+        exactly to zero if that subtraction would cross the origin. The book
+        names this operation: "the least squares coefficients that are less
+        than λ/2 in absolute value are shrunken entirely to zero … known as
+        <strong>soft-thresholding</strong>. The fact that some lasso coefficients
+        are shrunken entirely to zero explains why the lasso performs feature
+        selection."</p>
+
+      <figure class="demo" id="demo-shrink-soft">
+        <div class="demo-body grid2">
+          <canvas id="ss-map"></canvas>
+          <canvas id="ss-credit"></canvas>
+        </div>
+        <div class="demo-controls">
+          <span class="ctrl">
+            <label for="ss-lam">λ</label>
+            <input type="range" id="ss-lam" min="0" max="4" step="0.01" value="0">
+          </span>
+          <span class="ro" id="ss-lamread">…</span>
+          <span class="ro" id="ss-frac">…</span>
+          <span class="ro" id="ss-dead">…</span>
+          <span class="ro" id="ss-zero">…</span>
+          <span class="ro" id="ss-note">…</span>
+        </div>
+        <figcaption><strong>Play with it:</strong> equations (6.14) and (6.15)
+          side by side. <em>Left</em> — the two shrinkage maps against the
+          dashed 45° line, which is "no shrinkage at all". The ridge line tilts
+          but stays straight through the origin; the lasso line flattens into a
+          horizontal shelf between −λ/2 and +λ/2, and that shaded shelf is the
+          dead zone: any least-squares coefficient that lands inside it comes
+          out as exactly zero. <em>Right</em> — the eleven real Credit
+          least-squares coefficients under both maps at once, so the abstract
+          picture has concrete victims. Drag λ and watch the ridge dots slide
+          down toward zero in unison, all keeping the same fraction of
+          themselves, while the lasso dots drop by a fixed amount and several
+          pile up onto the zero line. The readouts quantify both: ridge keeps
+          100.0% at λ = 0, and the dead-zone readout tells you the exact
+          threshold λ/2 that decides who survives.</figcaption>
+      </figure>
+
+      <div class="callout">
+        <p class="callout-title">Why this is not just a technicality</p>
+        <p>Proportional shrinkage means ridge's coefficients are all still
+          fighting each other for credit — with correlated predictors like
+          Limit and Rating, ridge splits the credit between them in a ratio
+          that depends on their correlation, and neither coefficient means
+          much on its own. Soft-thresholding means the lasso resolves that
+          argument by switching most of the participants off. It is a coarser,
+          blunter tool, and that bluntness is precisely what makes the result
+          readable.</p>
+      </div>
+    </section>
+
+    <section id="choosing-lambda">
+      <h2>4. Choosing λ</h2>
+
+      <p>Every claim above is conditional on λ. λ = 0 is plain least squares;
+        λ → ∞ is the empty model. The book is explicit that "selecting a good
+        value of λ for the lasso is critical", and the method is the one you
+        already know: "Cross-validation provides a simple way to tackle this
+        problem. We choose a grid of λ values, and compute the cross-validation
+        error for each value of λ … We then select the tuning parameter value
+        for which the cross-validation error is smallest."</p>
+
+      <p>The first example is ridge on Credit, using leave-one-out
+        cross-validation. Doing that naively means 400 refits per λ, but a ridge
+        fit is a linear smoother, so one eigendecomposition gives every
+        leave-one-out residual in a single pass — the whole path of 60 λ values
+        is computed while the page loads.</p>
+
+      <figure class="demo" id="demo-shrink-rc">
+        <div class="demo-body grid2">
+          <canvas id="rc-cv"></canvas>
+          <canvas id="rc-path"></canvas>
+        </div>
+        <div class="demo-controls">
+          <span class="ctrl">
+            <label for="rc-lam">λ</label>
+            <input type="range" id="rc-lam" min="0" max="59" step="1" value="0">
+          </span>
+          <span class="ro" id="rc-min">…</span>
+          <span class="ro" id="rc-se">…</span>
+          <span class="ro" id="rc-flat">…</span>
+          <span class="ro" id="rc-now">…</span>
+          <span class="ro" id="rc-coef">…</span>
+        </div>
+        <figcaption><strong>Play with it:</strong> the book's Figure 6.12, on
+          this page's own ridge fits rather than a transcription.
+          <em>Left</em> — the leave-one-out CV error against λ, with a dashed
+          line at the minimum and a second at the one-standard-error choice; the
+          shaded band is everything within 1% of the minimum. <em>Right</em> —
+          the ridge coefficient path with the same two lines, so you can see
+          what the chosen λ buys. Drag the slider to move both lines' marker and
+          read the three largest coefficients at that λ. The book's reading of
+          this figure is that "the value is relatively small, indicating that
+          the optimal fit only involves a small amount of shrinkage relative to
+          the least squares solution" and that "the dip is not very pronounced,
+          so there is rather a wide range of values that would give a very
+          similar error" — and this version agrees: the minimum lands at
+          λ ≈ 0.34 with a CV MSE near 10,013, while everything within 1% of it
+          stretches from 0.010 all the way to 3.5, three orders of magnitude.
+          The book's own conclusion follows: "In a case like this we might
+          simply use the least squares solution."</figcaption>
+      </figure>
+
+      <p>The second example is the lasso on data where sparsity is the
+        <em>right</em> answer. The book's Figure 6.9/6.13 simulation has 45
+        predictors but only two that matter — "the response is a function of
+        only 2 out of 45 predictors" — and the question is whether
+        cross-validation can find them. The book's answer: "Not only has the
+        lasso correctly given much larger coefficient estimates to the two
+        signal predictors, but also the minimum cross-validation error
+        corresponds to a set of coefficient estimates for which only" the
+        signal variables are non-zero.</p>
+
+      <p>Our version of that experiment is described in full in the caption,
+        because the book does not print its simulation parameters: n = 50,
+        p = 45 standard-normal predictors, two of them carrying coefficients
+        of +4 and −4, unit Gaussian noise, with the data and fold seeds fixed
+        so the picture is reproducible.</p>
+
+      <figure class="demo" id="demo-shrink-sp2">
+        <div class="demo-body grid2">
+          <canvas id="sp2-cv"></canvas>
+          <canvas id="sp2-path"></canvas>
+        </div>
+        <div class="demo-controls">
+          <button class="btn primary" id="sp2-again" type="button">another draw</button>
+          <span class="ro" id="sp2-min">…</span>
+          <span class="ro" id="sp2-nz">…</span>
+          <span class="ro" id="sp2-verdict">…</span>
+          <span class="ro" id="sp2-yvar">…</span>
+        </div>
+        <figcaption><strong>Play with it:</strong> the book's Figure 6.13,
+          fitted live — ten folds × forty values of λ, one fold per animation
+          frame so the page never stalls. <em>Left</em> — the ten-fold CV error.
+          <em>Right</em> — the coefficient paths, the two signal predictors
+          coloured and the 43 noise predictors grey, drawn against the book's
+          shrinkage index ‖β̂<sub>λ</sub>‖<sub>1</sub>/‖β̂‖<sub>1</sub>, which
+          runs from 0 (everything zero) to 1 (plain least squares). On the
+          shipped draw, cross-validation drops the error from a null-model
+          30.6 to about 0.94 and the verdict reads "isolated exactly the two
+          signal variables" — 2 of 45 non-zero, X5 and X23, both marked
+          <em>(signal)</em>. Now press <strong>another draw</strong>. It
+          regenerates the data with a new seed and reports whatever it actually
+          found: on the first press it keeps 13 of 45 predictors, 11 of them
+          noise, and says so. That is not a defect in the demo — it is the
+          honest difficulty of n = 50 with p = 45. Of the 245 combinations of
+          data seed and fold seed we tested, exactly six left only the two
+          signal variables at the CV minimum. The book's clean result is
+          real, and it is also not guaranteed.</figcaption>
+      </figure>
+
+      <p>So which penalty should you use? The book refuses to pick a universal
+        winner, and the reason is the bias-variance trade-off wearing different
+        clothes: "one might expect the lasso to perform better in a setting
+        where a relatively small number of predictors have substantial
+        coefficients, and the remaining predictors have coefficients that are
+        very small or that equal zero. Ridge regression will perform better
+        when the response is a function of many predictors, all with
+        coefficients of roughly equal size." The catch, immediately after:
+        "the number of predictors that is related to the response is never
+        known a priori for real data sets." Cross-validation is how you find
+        out, and that is what the demos above are for.</p>
+
+      <div class="callout">
+        <p class="callout-title">The Bayesian shortcut, in one paragraph</p>
+        <p>Section 6.2.2 offers a different way to remember the difference.
+          Assume normal errors and a prior on the coefficients that factorises
+          one coefficient at a time. If that prior is <strong>Gaussian</strong>,
+          the posterior mode — and the posterior mean — is the ridge solution.
+          If it is a <strong>double-exponential (Laplace)</strong> distribution,
+          the posterior mode is the lasso solution. The book's summary is the
+          bit worth keeping: "the lasso prior is steeply peaked at zero, while
+          the Gaussian is flatter and fatter at zero. Hence, the lasso expects a
+          priori that many of the coefficients are (exactly) zero, while ridge
+          assumes the coefficients are randomly distributed about zero."</p>
+      </div>
+
+      <div class="callout ok">
+        <p class="callout-title">Section 6.2 in one line</p>
+        <p>Keep every predictor but shrink the coefficients: ridge's squared
+          penalty reduces them all by the same proportion and never deletes
+          one, while the lasso's absolute-value penalty reduces them by the
+          same amount and deletes outright whatever falls inside the dead zone —
+          which is why only the lasso does variable selection. Choose λ the way
+          you chose model size in section 6.1, with cross-validation, and
+          remember that the CV curve is often so flat that a wide range of λ
+          would serve equally well.</p>
+      </div>
+    </section>
+
+    <footer style="margin-top:64px;font-size:13.5px;color:var(--muted);">
+      <p class="further">Source: ISLP, Section 6.2 (pp. 241–253). Every
+        coefficient path, constraint contour, shrinkage map and cross-validation
+        curve on this page is computed in your browser from the real Credit data
+        set (400 observations, ten predictors, response Balance) shipped with the
+        book's Python package, except the sparse simulation, whose parameters and
+        seeds are stated in its caption. The ridge paths and the lasso
+        cross-validation path are precomputed by <code>tools/ch06_data.py</code>
+        so that coordinate descent on Credit's near-collinear Limit/Rating pair
+        converges fully; the ridge leave-one-out curve, the constraint geometry,
+        the soft-threshold maps and the entire ten-fold sparse simulation are
+        fitted live as the page loads. The quoted λ values and error figures are
+        read off those computations rather than taken from the book.</p>
+      <p>ISLP Plainly — <span data-year>2026</span></p>
+    </footer>
+  </main>
+
+  <!-- ======================= page TOC ======================= -->
+  <details class="page-toc" id="page-toc" open>
+    <summary>On this page</summary>
+    <p class="toc-title">On this page</p>
+    <nav aria-label="Table of contents">
+      <ol></ol>
+    </nav>
+  </details>
+</div>
+
+<div class="scrim" id="scrim"></div>
+
+</body>
+</html>

@@ -1,0 +1,471 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>6.3 · Dimension Reduction Methods — ISLP Plainly</title>
+<meta name="description" content="ISLP section 6.3 in plain language: replacing the p predictors by M linear combinations, principal components as the direction of greatest spread, principal components regression with cross-validation choosing M, and partial least squares letting the response vote. Three live demos rotate a line through 100 simulated cities, rebuild the Credit model from its first M components, and tilt the PLS direction against the PC direction.">
+<link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css">
+<link rel="stylesheet" href="assets/css/style.css">
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/contrib/auto-render.min.js"></script>
+<script defer src="assets/js/plots.js"></script>
+<script defer src="assets/js/nav.js"></script>
+<script defer src="assets/data/ch03-data.js"></script>
+<script defer src="assets/data/ch06-data.js"></script>
+<script defer src="assets/js/stats.js"></script>
+<script defer src="assets/js/demos/pca-dir.js"></script>
+<script defer src="assets/js/demos/pcr-credit.js"></script>
+<script defer src="assets/js/demos/pls-dir.js"></script>
+<script defer src="assets/js/common.js"></script>
+</head>
+<body>
+
+<a class="skip-link" href="#main">Skip to content</a>
+
+<header class="topbar">
+  <button class="icon-btn" data-sidebar-toggle aria-label="Open navigation menu" aria-controls="sidebar">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 6h16M4 12h16M4 18h16"/></svg>
+  </button>
+  <span class="topbar-title">6.3 · Dimension Reduction Methods</span>
+</header>
+
+<div class="app">
+
+  <!-- ======================= sidebar ======================= -->
+  <aside class="sidebar" id="sidebar">
+    <div class="brand">
+      <span class="logo">∑</span>
+      <a href="index.html">ISLP Plainly</a>
+    </div>
+
+    <nav class="side-nav" aria-label="Site navigation"></nav>
+
+    <div class="side-foot">
+      <button class="theme-btn" data-theme-toggle type="button">
+        <svg class="sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2m0 16v2M4.9 4.9l1.4 1.4m11.4-11.4 1.4 1.4M2 12h2m16 0h2M19.1 4.9l-1.4 1.4M4.9 19.1l-1.4 1.4"/></svg>
+        <svg class="moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg>
+        <span class="theme-label">Dark mode</span>
+      </button>
+    </div>
+  </aside>
+
+  <!-- ======================= main ======================= -->
+  <main id="main">
+
+    <div class="page-head">
+      <p class="eyebrow">Chapter 6 · section 6.3 · book pages 254–262</p>
+      <h1>Dimension reduction methods</h1>
+      <p class="lede">Sections 6.1 and 6.2 argued about which of the original
+        predictors to trust. Section 6.3 stops arguing and changes the
+        predictors: build <em>M</em> new variables, each a weighted sum of the
+        originals, then run least squares on those <em>M</em> as if they were
+        the data. The weights are the whole question. <strong>Principal
+        components</strong> choose them by following the spread of the data and
+        never look at the response. <strong>Partial least squares</strong>
+        looks at the response first and weights each predictor by how well it
+        predicts. The three demos below rotate a line through our own 100
+        simulated cities, rebuild the Credit model out of its first <em>M</em>
+        components with cross-validation picking <em>M</em>, and put the book's
+        Figure 6.21 on a slider.</p>
+    </div>
+
+    <section id="reading">
+      <h2>Reading</h2>
+      <ul class="reading">
+        <li><span class="r-label">Read</span>
+          <span class="r-body">Section 6.3 in full (pp. 254–262). The opening
+            page states the recipe shared by every method in the section;
+            6.3.1 does principal components at length, 6.3.2 does partial least
+            squares in about a page.</span></li>
+        <li><span class="r-label">Skim</span>
+          <span class="r-body">Equations (6.16) to (6.18). It is the shortest
+            passage in the chapter and it says one thing: replace the p
+            predictors by M combinations, fit least squares to those, and
+            notice that this forces the original coefficients into the shape
+            of (6.18) — a constraint, and therefore a trade.</span></li>
+        <li><span class="r-label">Then</span>
+          <span class="r-body">Section 6.4, which asks what happens when p
+            grows past n and the machinery of 6.1 to 6.3 stops being a choice
+            and starts being the only thing between you and a model that fits
+            noise perfectly.</span></li>
+      </ul>
+
+      <div class="keybox">
+        <p class="keybox-title">Key ideas</p>
+        <p>Every method so far used the original predictors; this one replaces
+          them with <strong>M linear combinations</strong> of them, which
+          constrains the original coefficients to the form of (6.18) and
+          trades a little bias for a lot less variance when M is well below p.
+          The only question is how to choose the weights, and there are two
+          answers. <strong>Principal components</strong> pick the direction the
+          data spreads along furthest — an unsupervised answer that knows
+          nothing about the response, which is exactly why the number of
+          components has to be chosen by cross-validation, and why a component
+          carrying 2% of the predictors' variance can be the one that fixes the
+          model. <strong>Partial least squares</strong> weights each predictor
+          by its simple regression on the response. On our simulated cities
+          that tilts the line away from ad spending, because population is
+          both the more variable column and the better predictor of sales —
+          and pushing advertising's weight up swings PLS past the PC line and
+          keeps going, which is the entire difference between a direction
+          chosen by the spread of X and one chosen by X's relationship to y.</p>
+      </div>
+
+      <h3>What you will know afterwards</h3>
+      <ul class="chips">
+        <li class="chip">M new variables as weighted sums of the p old ones</li>
+        <li class="chip">what (6.18) constrains, and why that is a trade</li>
+        <li class="chip">the first PC: widest spread and closest line, one line</li>
+        <li class="chip">reading PC loadings as a direction in the raw units</li>
+        <li class="chip">why 97.6% of the variance can still be a useless model</li>
+        <li class="chip">M is a tuning parameter, chosen by cross-validation</li>
+        <li class="chip">PLS: weight by the response, then deflate</li>
+        <li class="chip">why PLS often does no better than ridge or PCR</li>
+      </ul>
+    </section>
+
+    <section id="idea">
+      <h2>1. Fit the transformed variables</h2>
+
+      <p>Here is the move in one sentence: instead of estimating p + 1
+        coefficients on the original predictors, first mash the predictors
+        down into M of them — M smaller than p — and estimate M + 1
+        coefficients on <em>those</em>. Each new variable is a weighted sum of
+        the originals, with weights φ<sub>jm</sub> that some rule has to
+        supply:</p>
+
+      $$Z_m \;=\; \sum_{j=1}^{p} \phi_{jm}\, X_j
+        \qquad m = 1, \dots, M \qquad(6.16)$$
+
+      <p>Once you have them, the second step is ordinary least squares with
+        the Z's standing in for the X's:</p>
+
+      $$y_i \;=\; \theta_0 + \sum_{m=1}^{M} \theta_m z_{im} + \varepsilon_i,
+        \qquad i = 1, \dots, n \qquad(6.17)$$
+
+      <p>Two steps, always the same two: build the new variables, then fit.
+        The two approaches in this section differ only in how they do the
+        first step. But there is a consequence worth sitting with, because it
+        is the reason the section exists at all. Substitute (6.16) into
+        (6.17) and the model collapses back onto the original predictors with
+        coefficients that are forced into a particular shape:</p>
+
+      $$\beta_j \;=\; \sum_{m=1}^{M} \theta_m \phi_{jm}
+        \qquad(6.18)$$
+
+      <p>Those β<sub>j</sub> are no longer free to be whatever the data
+        wants. They must be a combination of M fixed directions, and if M is
+        much smaller than p that is a real restriction — one that can bias the
+        estimates. It earns its keep through variance: when p is large
+        relative to n, forcing the coefficients onto M well-chosen directions
+        is often the difference between a model that predicts and a model that
+        memorises. And if M = p with the Z's independent, (6.18) constrains
+        nothing and you are simply running least squares again. The second demo
+        on this page checks exactly that: set <em>M</em> to 11 and its
+        <em>M</em> readout prints the largest difference between the two
+        coefficient vectors — a rounding error next to coefficients that run
+        into the hundreds.</p>
+
+      <div class="callout">
+        <p class="callout-title">The one question this section asks</p>
+        <p>Nothing above says <em>which</em> combinations to use. That single
+          choice splits the section in two. Principal components answer by
+          looking only at X — find the directions along which the predictors
+          vary most, in order, and keep the first M. Partial least squares
+          answers by looking at both — weight each predictor by how strongly it
+          is related to the response. The first is unsupervised and therefore
+          indifferent to whether the spread it captures has anything to do with
+          y; the second is supervised and therefore can chase noise. Everything
+          else in section 6.3 follows from that fork.</p>
+      </div>
+    </section>
+
+    <section id="pca">
+      <h2>2. Principal components: aim the line at the spread</h2>
+
+      <p>The first principal component direction is defined by a claim about
+        pictures: it is the line along which the observations vary the most.
+        Project every point onto the line — drop each one onto the nearest
+        position on it — and those projected positions will be more spread out
+        than they would be on any other line you could draw.</p>
+
+      <p>There is a second way to say the same thing, and the book gives both
+        because they are genuinely two views of one object. The line that
+        maximises the spread of the projections is also the line that
+        <em>minimises</em> the sum of the squared perpendicular distances from
+        the points to the line. Fix the total: every point's distance from the
+        cloud's centre splits between along-the-line and off-the-line, so
+        pushing the projections apart necessarily pulls the perpendicular
+        residuals in. Demo 1 hands you the line and reports both numbers at
+        once, so you can watch one go down while the other goes up.</p>
+
+      <p>Written out, the first component is a single weighted average of the
+        two columns, with the weights fixed so that they cannot be inflated
+        — otherwise you could make the variance as large as you liked by
+        simply scaling up:</p>
+
+      $$Z_1 \;=\; \phi_{11}\big(\mathrm{pop} - \overline{\mathrm{pop}}\big)
+        \;+\; \phi_{21}\big(\mathrm{ad} - \overline{\mathrm{ad}}\big),
+        \qquad \phi_{11}^2 + \phi_{21}^2 = 1 \qquad(6.19)$$
+
+      <p>Those φ's are called the <strong>loadings</strong>, and they are read
+        as a direction: (6.19) is one line in the pop–ad plane, and the line
+        with the largest possible projection variance under the length
+        constraint is the one the picture draws. Per observation the same
+        combination gives a single number, the <strong>score</strong>:</p>
+
+      $$z_{i1} \;=\; \phi_{11}\big(\mathrm{pop}_i -
+        \overline{\mathrm{pop}}\big) \;+\; \phi_{21}\big(\mathrm{ad}_i -
+        \overline{\mathrm{ad}}\big) \qquad(6.20)$$
+
+      <p>So one column replaces two: a city's population and its ad budget
+        collapse into a single "how big is this place" number, which the book
+        argues works well here precisely because the two columns are close to
+        linearly related. On the book's own cities the loadings come out at
+        0.839 and 0.544 — both positive and of similar size, so Z<sub>1</sub>
+        is, as the book puts it, almost an average of the two. The demo below
+        computes ours.</p>
+
+      <figure class="demo" id="demo-pca-dir">
+        <div class="demo-body grid2">
+          <canvas id="pd-scatter"></canvas>
+          <canvas id="pd-rot"></canvas>
+        </div>
+        <div class="demo-controls">
+          <span class="ctrl">
+            <label for="pd-ang">angle</label>
+            <input type="range" id="pd-ang" min="-90" max="90" step="0.1" value="30.2">
+          </span>
+          <button class="btn" id="pd-snap" type="button">back to PC1</button>
+          <span class="ro" id="pd-angle">…</span>
+          <span class="ro" id="pd-along">…</span>
+          <span class="ro" id="pd-perp">…</span>
+          <span class="ro" id="pd-share">…</span>
+          <span class="ro" id="pd-load">…</span>
+        </div>
+        <figcaption><strong>Play with it:</strong> Figure 6.15's two panels with
+          the PC1 line of Figure 6.14 through them, on <em>our</em> 100
+          simulated cities — the book does not publish the pop and ad numbers
+          behind its own figures, so the cloud, the seed and the resulting
+          loadings are ours and are computed as the page loads.
+          <em>Left</em> — the scatter in population and ad spending, with the
+          line you are holding drawn through the green mean dot and a dashed
+          grey drop from every city to its foot on that line. The red dashed
+          line is where PC1 actually is; drag the slider off it and the drops
+          lengthen. <em>Right</em> — the same cloud rotated so your line is
+          horizontal: the shaded strip is one standard deviation along that
+          line, and how far the points spread vertically is what is left
+          over. Start on PC1, read the two numbers,
+          then drag. <em>Spread along the line</em> falls the moment you move,
+          <em>off the line</em> climbs past 100% of the smallest possible
+          value, and the strip narrows — three readings of
+          one fact. The loadings readout gives (6.19)'s φ for our data, and
+          the variance readout splits it: PC1 keeps 80.1% of the two columns'
+          variance and PC2 the remaining 19.9%.</figcaption>
+      </figure>
+
+      <p class="table-note">A note on conventions, because the difference is
+        visible. We draw (6.19) in the original units: a unit-length
+        combination of the two columns themselves — 0.839² + 0.544² is 1 —
+        which is what makes the dashed drops in the left panel genuinely
+        perpendicular and "closest line" mean closest in these units. The
+        book's footnote 7 says its own figure was computed after standardising
+        pop and ad first, which points the line at slope 0.74 instead of our
+        0.58; we follow the equation as printed, on our data, and say so
+        rather than quietly pick one.</p>
+
+      <p>Two things the demo makes easy to check. First, the loadings are both
+        positive and of similar size, so the score is close to an average of
+        the two budgets — the book's reasoning for expecting a single number
+        to work well. Second, the split of the variance: PC1 takes 80.1% and
+        PC2 19.9%, and PC2 is by construction uncorrelated with PC1, so it
+        represents what the first component missed. In this cloud there is not
+        much left to miss, which is what the book's "pop and ad have
+        approximately a linear relationship" looks like in numbers.</p>
+    </section>
+
+    <section id="pcr">
+      <h2>3. Principal components regression, and how to choose M</h2>
+
+      <p>Now the regression. Take the first M principal components, fit (6.17)
+        to them, and map the answer back through (6.18) to get coefficients on
+        the original predictors. The book is explicit about one preliminary:
+        standardise every predictor first, using (6.6), because otherwise the
+        high-variance columns dominate the components and the units you
+        happened to measure in silently decide the answer. Every predictor
+        measured in the same units is the exception it allows.</p>
+
+      <p>That leaves M, and M cannot be read off the variance shares. This is
+        the trap the section is built around, and the Credit data walks
+        straight into it: the first nine components carry 97.6% of the
+        predictors' variance and produce a model that is nowhere near
+        least squares; the tenth component carries the last 2.4% and the model
+        falls off a cliff. Cross-validation, not the scree plot, has to pick
+        M — and the demo computes the whole curve live, refitting the
+        decomposition inside every one of the ten folds.</p>
+
+      <figure class="demo" id="demo-pcr-credit">
+        <div class="demo-body grid2">
+          <canvas id="prc-path"></canvas>
+          <canvas id="prc-cvc"></canvas>
+        </div>
+        <div class="demo-controls">
+          <span class="ctrl">
+            <label for="prc-m">components M</label>
+            <input type="range" id="prc-m" min="1" max="11" step="1" value="11">
+          </span>
+          <span class="ro" id="prc-now">…</span>
+          <span class="ro" id="prc-cv">…</span>
+          <span class="ro" id="prc-share">…</span>
+          <span class="ro" id="prc-best">…</span>
+          <span class="ro" id="prc-pc">…</span>
+          <span class="ro" id="prc-top">…</span>
+        </div>
+        <figcaption><strong>Play with it:</strong> Figure 6.20, computed from
+          the real Credit data as the page loads. <em>Left</em> — the
+          standardised coefficient estimates for each M, one line per
+          predictor, with Income, Limit, Rating and Student emphasised: those
+          four are what the book calls the most important predictors on this
+          data (section 6.2). <em>Right</em> — the ten-fold cross-validation
+          MSE against M, with
+          the fold's own means and standard deviations recomputed from the
+          training rows each time. Drag M from 11 down to 9 and watch the left
+          panel collapse into a knot and the right panel jump sevenfold: nine
+          components hold 97.6% of the predictors' variance and CV still
+          reports 71,704.6; the tenth holds 2.4% and CV falls to 10,096.5. The
+          reason is in the <em>PC</em> readout — PC1, the biggest single
+          direction, correlates +0.76 with Balance while loading Income, Limit
+          and Rating all the same way, while PC10 correlates −0.52 by loading
+          Income <em>against</em> Limit and Rating. Balance wants the second
+          picture, and no amount of variance explained tells you that.
+          The book reports its minimum at M = 10; ours sits at M = 11, a
+          whisker away, and both say the same thing — on this data PCR wants
+          almost no dimension reduction at all.</figcaption>
+      </figure>
+
+      <div class="callout">
+        <p class="callout-title">Variance explained is not relevance</p>
+        <p>Principal components are unsupervised: they rank directions by how
+          much of X's spread they capture and are simply not told that the
+          response exists. Usually the big directions also happen to matter.
+          Credit is a clean counterexample, and it is worth remembering
+          because the fix is not a better scree plot — it is a supervised
+          criterion, either cross-validation over M as above, or a method that
+          consults y while choosing the directions in the first place. That
+          second option is the whole of section 6.3.2.</p>
+      </div>
+    </section>
+
+    <section id="pls">
+      <h2>4. Partial least squares: let the response vote</h2>
+
+      <p>Partial least squares keeps the two-step shape of (6.16) and (6.17)
+        and changes only how the first direction is picked. Standardise the
+        predictors, then set each weight φ<sub>j1</sub> to the coefficient from
+        the simple linear regression of Y on X<sub>j</sub>. The book points out
+        the shortcut that makes this cheap to think about: that coefficient is
+        proportional to the correlation between Y and X<sub>j</sub>. So the
+        first PLS direction is, up to a normalisation, just the vector of
+        correlations with the response — heavy weight on whichever predictors
+        actually move the needle.</p>
+
+      $$\phi_{j1} \;\propto\; \mathrm{cor}(Y,\, X_j)
+        \qquad\text{after standardising the predictors}$$
+
+      <p>Everything after that mirrors PCR: deflate each variable and y by
+        their fit on the new score, repeat for as many directions as you want,
+        then run least squares on the resulting Z's. The book is candid about
+        the trade — supervised directions can reduce bias, but they can also
+        increase variance, and in practice PLS "often performs no better than
+        ridge regression or PCR". It is a different bias–variance wager, not a
+        free upgrade.</p>
+
+      <p>Figure 6.21 is the picture version: two predictors, one response, and
+        both directions drawn through the same cloud so that the entire
+        comparison is a difference of slopes.</p>
+
+      <figure class="demo" id="demo-pls-dir">
+        <div class="demo-body">
+          <canvas id="pls-canvas"></canvas>
+        </div>
+        <div class="demo-controls">
+          <span class="ctrl">
+            <label for="pls-w">weight on ad</label>
+            <input type="range" id="pls-w" min="0" max="1.2" step="0.01" value="0.2">
+          </span>
+          <span class="ro" id="pls-wread">…</span>
+          <span class="ro" id="pls-r">…</span>
+          <span class="ro" id="pls-dir">…</span>
+          <span class="ro" id="pls-slope">…</span>
+        </div>
+        <figcaption><strong>Play with it:</strong> Figure 6.21, on the same 100
+          simulated cities as demo 1. The <em>dotted blue line</em> is the
+          first principal-component direction; it never moves, because it is
+          computed from the predictors alone and the slider does not touch
+          them. The <em>solid green line</em> is the first PLS direction,
+          built from each column's correlation with sales and then carried
+          back into population and ad units so both lines sit in the same
+          picture. The slider sets how much weight advertising gets in the
+          sales formula behind these cities. At the default, population
+          correlates 0.85 with sales against ad spending's 0.53, and PLS
+          answers by tilting <em>away</em> from ad — less change in the ad
+          dimension per unit change in pop, which is the point the book draws
+          from its own Figure 6.21. Keep
+          sliding and PLS crosses the PC line and goes steeper: the supervised
+          direction follows the response, and once advertising carries enough
+          of the response that is where it points. The direction readout gives
+          both unit vectors side by side, so nothing has to be taken on trust
+          from the picture.</figcaption>
+      </figure>
+
+      <div class="callout ok">
+        <p class="callout-title">Section 6.3 in one line</p>
+        <p>Dimension reduction replaces the p predictors with M linear
+          combinations of them and fits least squares on the combinations,
+          which constrains the original coefficients to (6.18) and buys lower
+          variance at the price of some bias. Principal components choose the
+          combinations from the spread of X alone — a reason the number of
+          components must be picked by cross-validation rather than by how much
+          variance the components explain — while partial least squares
+          chooses them from each predictor's relationship to y, which can help
+          and can just as easily add variance. Both are attempts to answer the
+          same question: which directions in the predictor cloud are worth
+          keeping.</p>
+      </div>
+    </section>
+
+    <footer style="margin-top:64px;font-size:13.5px;color:var(--muted);">
+      <p class="further">Source: ISLP, Section 6.3 (pp. 254–262). The pop/ad
+        cloud behind the first and third demos is simulated in
+        <code>tools/ch06_data.py</code> from a seed stated in its header and
+        shipped as <code>CH06_POPAD</code>; the book does not publish its own
+        100 regions, so every loading, direction and slope drawn from that
+        cloud is ours. The book's own coefficients — φ<sub>11</sub> = 0.839 and
+        φ<sub>21</sub> = 0.544 in (6.19) — are quoted in the text above and are
+        never presented as computed here. Everything on the Credit data is
+        fitted live: the coefficient path is eleven regressions on the
+        standardised design, and the cross-validation curve re-derives the
+        standardisation and the component decomposition inside each of the ten
+        folds rather than reusing the full-sample one. The quoted variance
+        shares, cross-validation errors and correlations are read off those
+        computations as they run.</p>
+      <p>ISLP Plainly — <span data-year>2026</span></p>
+    </footer>
+  </main>
+
+  <!-- ======================= page TOC ======================= -->
+  <details class="page-toc" id="page-toc" open>
+    <summary>On this page</summary>
+    <p class="toc-title">On this page</p>
+    <nav aria-label="Table of contents">
+      <ol></ol>
+    </nav>
+  </details>
+</div>
+
+<div class="scrim" id="scrim"></div>
+
+</body>
+</html>

@@ -66,8 +66,10 @@ lines = [
     "  student: " + jsarr((credit["Student"] == "Yes").to_numpy(int)) + ",",
     "  gender: " + jsarr((credit["Gender"] == "Female").to_numpy(int)) + ",",
     "  married: " + jsarr((credit["Married"] == "Yes").to_numpy(int)) + ",",
+    "  ethnicity: " + jsarr(credit["Ethnicity"].cat.codes.to_numpy(int)) + ",",
     "  levels: { student: ['No', 'Yes'], gender: ['Male', 'Female'],"
-    " married: ['No', 'Yes'] }",
+    " married: ['No', 'Yes'],"
+    " ethnicity: ['African American', 'Asian', 'Caucasian'] }",
     "};",
     "",
     "window.CH03_AUTO = {",
