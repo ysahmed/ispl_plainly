@@ -799,6 +799,291 @@
     return o;
   }
 
+  /* ======================================================================
+     Section 7.5 — the smoothing spline, ISLP eq. (7.11) to (7.14).
+
+         ĝ = argmin_g  SUM_i (y_i - g(x_i))^2  +  lambda INT g''(t)^2 dt
+
+     The book's result is that the answer is a *natural* cubic spline with a
+     knot at every distinct value of x, shrunk toward the straight line by
+     lambda: a regression spline with as many knots as the data can supply,
+     where lambda — not the knots — does the tuning.  So that is what this
+     builds: the natural basis of nsRaw() with one knot per distinct x, the
+     roughness penalty INT g''^2 as a matrix in those coordinates, and then
+
+         beta = (Z'WZ + lambda Omega)^-1 Z'W ybar,      g-hat = Z beta
+
+     which is chapter 6's ridge in the basis of section 7.4.
+
+     Two things keep it fast enough to run live:
+
+       1. Tied x values collapse.  The loss splits into a constant (the spread
+          within each tied group) plus the same loss on the group means with
+          weights = group sizes, so every quantity below is computed on the
+          distinct rows only — 61 of them on the Wage data, not 3,000.  The
+          constant is kept in `rss`, so RSS at lambda = 0 comes out as the
+          spread no spline can remove rather than as zero.
+       2. The basis is orthonormalised first (over all n rows), which makes
+          Z'WZ the identity: A = I + lambda*Omega, every solve is one
+          Gauss-Jordan step, and the condition number is lambda's doing alone.
+
+     The penalty matrix is computed exactly, not approximately: each column's
+     second derivative is piecewise linear between the knots, and Simpson's
+     rule integrates a product of two linears exactly.
+
+     df is eq. (7.13), trace(S_lambda); `cv` is the unnumbered leave-one-out
+     formula printed after it.  lamForDf() inverts df into lambda so a slider
+     can ask for "16 effective degrees of freedom" the way Figure 7.8 does.
+     ====================================================================== */
+  function buildSmoothSpline(x, y) {
+    var n = x.length, i, j, k;
+
+    /* ---- collapse tied x: the loss separates, so fit the group means ---- */
+    var order = [];
+    for (i = 0; i < n; i++) order.push(i);
+    order.sort(function (p, q) { return x[p] - x[q]; });
+    var u = [], w = [], ybar = [], tieK = [], grp = new Array(n), tieSS = 0, s = 0;
+    for (k = 0; k <= n; k++) {
+      if (k === n || x[order[k]] !== x[order[s]]) {
+        var cnt = k - s, sum = 0, ss = 0, t, mean, d;
+        for (t = s; t < k; t++) sum += y[order[t]];
+        mean = sum / cnt;
+        for (t = s; t < k; t++) { d = y[order[t]] - mean; ss += d * d; }
+        for (t = s; t < k; t++) grp[order[t]] = u.length;
+        u.push(x[order[s]]); w.push(cnt); ybar.push(mean); tieK.push(ss);
+        tieSS += ss;
+        s = k;
+      }
+    }
+    var M = u.length, a = u[0], b = u[M - 1];
+    var xi = u.slice(1, M - 1);              /* M - 2 interior knots */
+    var LMIN = -6, LMAX = 16;                /* log10(lambda) search window */
+
+    /* ---- raw columns [1, x, N1..N] and the roughness penalty ------------ */
+    function rawCols(xs) {
+      var ones = [], r;
+      for (r = 0; r < xs.length; r++) ones.push(1);
+      return [ones].concat(nsRaw(xs, xi, a, b));
+    }
+
+    /* N_j'' = 6 f_j with f_j(x) = (x - xi_j)+ - c_j (x - a): piecewise
+       linear, kinked at xi_j.  Values at every breakpoint are enough to
+       integrate products exactly over each interval. */
+    var F = [];
+    for (j = 0; j < xi.length; j++) {
+      var cj = (b - xi[j]) / (b - a), row = [];
+      for (k = 0; k < M; k++) {
+        var dv = u[k] - xi[j];
+        row.push((dv > 0 ? dv : 0) - cj * (u[k] - a));
+      }
+      F.push(row);
+    }
+    var Om = [];
+    for (i = 0; i < M; i++) Om.push(new Array(M).fill(0));
+    for (i = 0; i < xi.length; i++) {
+      for (j = i; j < xi.length; j++) {
+        var acc = 0;
+        for (k = 0; k < M - 1; k++) {
+          acc += (u[k + 1] - u[k]) / 6 *
+            (F[i][k] * F[j][k] +
+             (F[i][k] + F[i][k + 1]) * (F[j][k] + F[j][k + 1]) +
+             F[i][k + 1] * F[j][k + 1]);
+        }
+        Om[i + 2][j + 2] = Om[j + 2][i + 2] = 36 * acc;
+      }
+    }
+
+    /* ---- orthonormalise, and carry the penalty along with the rotation --
+       q = map * raw, so g = theta'q has raw coefficients map'theta and
+       INT g''^2 = theta' (map Omega map') theta. */
+    var org = ortho(rawCols(x)), map = org.map;
+    var Tm = [], OmO = [];
+    for (i = 0; i < M; i++) { Tm.push(new Array(M).fill(0)); OmO.push(new Array(M).fill(0)); }
+    for (i = 0; i < M; i++) {
+      for (k = 0; k < M; k++) {
+        if (!map[i][k]) continue;
+        for (j = 0; j < M; j++) Tm[i][j] += map[i][k] * Om[k][j];
+      }
+    }
+    for (i = 0; i < M; i++) {
+      for (j = 0; j < M; j++) {
+        var acc2 = 0;
+        for (k = 0; k < M; k++) acc2 += Tm[i][k] * map[j][k];
+        OmO[i][j] = acc2;
+      }
+    }
+
+    /* ---- design on the distinct rows: Z'WZ is the identity ------------- */
+    var Zu = applyMap(map, rawCols(u)), Z = [];
+    for (k = 0; k < M; k++) {
+      var zrow = new Array(M);
+      for (i = 0; i < M; i++) zrow[i] = Zu[i][k];
+      Z.push(zrow);
+    }
+    var G = [], ct = [];
+    for (i = 0; i < M; i++) { G.push(new Array(M).fill(0)); ct.push(0); }
+    for (k = 0; k < M; k++) {
+      for (i = 0; i < M; i++) {
+        ct[i] += w[k] * ybar[k] * Z[k][i];
+        for (j = 0; j < M; j++) G[i][j] += w[k] * Z[k][i] * Z[k][j];
+      }
+    }
+
+    /* ---- one fit ------------------------------------------------------- */
+    function fitLam(lam) {
+      var A = [], Ai, beta = [], fitv = [], Sii = [];
+      var i2, j2, k2, f, d, q, cv = 0, df = 0, rough = 0, rss = tieSS, bad = 0;
+      for (i2 = 0; i2 < M; i2++) {
+        A.push(new Array(M));
+        for (j2 = 0; j2 < M; j2++) A[i2][j2] = G[i2][j2] + lam * OmO[i2][j2];
+      }
+      Ai = inverse(A);
+      for (i2 = 0; i2 < M; i2++) {
+        var s2 = 0;
+        for (j2 = 0; j2 < M; j2++) s2 += Ai[i2][j2] * ct[j2];
+        beta.push(s2);
+      }
+      for (k2 = 0; k2 < M; k2++) {
+        f = 0;
+        for (i2 = 0; i2 < M; i2++) f += Z[k2][i2] * beta[i2];
+        fitv.push(f);
+        d = ybar[k2] - f;
+        rss += w[k2] * d * d;
+        q = 0;
+        for (i2 = 0; i2 < M; i2++) {
+          var s3 = 0;
+          for (j2 = 0; j2 < M; j2++) s3 += Ai[i2][j2] * Z[k2][j2];
+          q += Z[k2][i2] * s3;
+        }
+        Sii.push(q);
+        if (1 - q > 0) cv += (tieK[k2] + w[k2] * d * d) / ((1 - q) * (1 - q));
+        else bad = 1;                       /* lambda = 0 memorises its x */
+      }
+      for (i2 = 0; i2 < M; i2++) for (j2 = 0; j2 < M; j2++) {
+        df += Ai[i2][j2] * G[j2][i2];                       /* eq. (7.13) */
+        rough += beta[i2] * OmO[i2][j2] * beta[j2];         /* INT g''^2  */
+      }
+      return { lam: lam, beta: beta, fit: fitv, Sii: Sii, df: df, rss: rss,
+               rough: rough, cv: bad ? Infinity : cv };
+    }
+
+    /* df alone — what lamForDf()'s bisection needs, about twice as cheap */
+    function dfAt(lam) {
+      var A = [], Ai, i2, j2, df = 0;
+      for (i2 = 0; i2 < M; i2++) {
+        A.push(new Array(M));
+        for (j2 = 0; j2 < M; j2++) A[i2][j2] = G[i2][j2] + lam * OmO[i2][j2];
+      }
+      Ai = inverse(A);
+      for (i2 = 0; i2 < M; i2++) for (j2 = 0; j2 < M; j2++) df += Ai[i2][j2] * G[j2][i2];
+      return df;
+    }
+
+    /* the (log10 lambda, df, rss, rough, cv) path, built once: it is the
+       leave-one-out curve of Figure 7.8's lower panel and the bracket that
+       lamForDf() bisects inside */
+    var TBL = null;
+    function table() {
+      if (TBL) return TBL;
+      TBL = [];
+      for (var p = 0; p <= 300; p++) {
+        var L = LMIN + (LMAX - LMIN) * p / 300, f = fitLam(Math.pow(10, L));
+        TBL.push({ L: L, df: f.df, rss: f.rss, rough: f.rough, cv: f.cv });
+      }
+      return TBL;
+    }
+
+    var dfLam = {};
+    function lamForDf(target) {
+      var key = target.toFixed(4);
+      if (dfLam[key] !== undefined) return dfLam[key];
+      var t = table(), i = 0, lo, hi, mid, it;
+      if (target >= t[0].df || target <= t[t.length - 1].df) {
+        dfLam[key] = target >= t[0].df ? t[0].L : t[t.length - 1].L;
+        return dfLam[key];
+      }
+      while (i < t.length - 2 && !(t[i].df >= target && t[i + 1].df <= target)) i++;
+      lo = t[i].L; hi = t[i + 1].L;
+      for (it = 0; it < 18; it++) {
+        mid = (lo + hi) / 2;
+        if (dfAt(Math.pow(10, mid)) > target) lo = mid; else hi = mid;
+      }
+      dfLam[key] = (lo + hi) / 2;
+      return dfLam[key];
+    }
+
+    /* the lambda that minimises the leave-one-out criterion: golden section
+       on log10(lambda) inside the table's best interval */
+    var LOO = null;
+    function loocv() {
+      if (LOO) return LOO;
+      var t = table(), best = 0, i;
+      for (i = 1; i < t.length; i++) if (t[i].cv < t[best].cv) best = i;
+      var lo = t[Math.max(0, best - 1)].L, hi = t[Math.min(t.length - 1, best + 1)].L;
+      var gr = (Math.sqrt(5) - 1) / 2;
+      var c = hi - gr * (hi - lo), d = lo + gr * (hi - lo);
+      var fc = fitLam(Math.pow(10, c)).cv, fd = fitLam(Math.pow(10, d)).cv;
+      for (i = 0; i < 60 && hi - lo > 1e-9; i++) {
+        if (fc < fd) {
+          hi = d; d = c; fd = fc; c = hi - gr * (hi - lo); fc = fitLam(Math.pow(10, c)).cv;
+        } else {
+          lo = c; c = d; fc = fd; d = lo + gr * (hi - lo); fd = fitLam(Math.pow(10, d)).cv;
+        }
+      }
+      var L = (lo + hi) / 2;
+      LOO = { L: L, f: fitLam(Math.pow(10, L)) };
+      return LOO;
+    }
+
+    /* a fitted smoothing spline, evaluated anywhere */
+    function curve(f, xs) {
+      var cols = applyMap(map, rawCols(xs)), out = [], r, i2, v;
+      for (r = 0; r < xs.length; r++) {
+        v = 0;
+        for (i2 = 0; i2 < M; i2++) v += cols[i2][r] * f.beta[i2];
+        out.push(v);
+      }
+      return out;
+    }
+
+    /* Delete one observation — not one group: the design loses the single
+       rank-one piece that observation contributed, and the knots stay where
+       they were, which is exactly the condition under which eq. (7.14) holds. */
+    function fitWithout(g, yi, lam) {
+      var A = [], rhs = [], i2, j2, f = 0;
+      for (i2 = 0; i2 < M; i2++) {
+        A.push(new Array(M));
+        rhs.push(ct[i2] - Z[g][i2] * yi);
+        for (j2 = 0; j2 < M; j2++) {
+          A[i2][j2] = G[i2][j2] - Z[g][i2] * Z[g][j2] + lam * OmO[i2][j2];
+        }
+      }
+      var beta = solve(A, rhs);
+      for (i2 = 0; i2 < M; i2++) f += Z[g][i2] * beta[i2];
+      return f;
+    }
+
+    return {
+      x: x, y: y, n: n, M: M, lo: a, hi: b, ages: u, knots: xi,
+      counts: w, means: ybar,
+      group: grp, tieSS: tieSS, LMIN: LMIN, LMAX: LMAX,
+      fitLam: fitLam,
+      fitL: function (L) { return fitLam(Math.pow(10, L)); },
+      table: table, lamForDf: lamForDf, loocv: loocv, curve: curve,
+      fitWithout: fitWithout
+    };
+  }
+
+  /* One smoothing spline per data set: the table and the leave-one-out
+     search cost a few hundred matrix solves, and three demos on one page
+     all want the same one. */
+  var _ssMemo = null;
+  function smoothSpline(x, y) {
+    if (_ssMemo && _ssMemo.x === x && _ssMemo.y === y) return _ssMemo;
+    _ssMemo = buildSmoothSpline(x, y);
+    return _ssMemo;
+  }
+
   /* The design matrix [1, b1, ..., bK] for a basis.  With no columns — a
      model that is only an intercept — the row count has to be passed in. */
   function design(cols, n) {
@@ -940,6 +1225,7 @@
     nsRaw: nsRaw,
     natSpline: natSpline,
     cubSpline: cubSpline,
+    smoothSpline: smoothSpline,
     design: design,
     cvBasis: cvBasis,
     logit: logit

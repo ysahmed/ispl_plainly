@@ -423,6 +423,7 @@
           <span class="ro" id="st-poly">…</span>
           <span class="ro" id="st-nat">…</span>
           <span class="ro" id="st-gap">…</span>
+          <span class="ro" id="st-counts">…</span>
         </div>
         <figcaption><strong>Play with it:</strong> the book's Figure 7.7 — a degree-15
           polynomial and a natural cubic spline with 15 degrees of freedom, both fitted in
@@ -448,9 +449,10 @@
         years to 142.3, and then drops 56.2 in the last one. Over the same eleven ages
         the natural spline goes 105.0 down to 78.5, monotone, following the data. Nothing
         in the salary record is doing that; it is $x^{15}$ doing
-        what $x^{15}$ always does at the ends of its range, and the
-        79-year-olds in this data set are simply the people unlucky enough to be at one of
-        those ends.</p>
+        what $x^{15}$ always does at the ends of its range — and the peak lands in a hole.
+        This data set contains no 78-year-olds and no 79-year-olds at all: the nearest
+        men are one 77-year-old and four 80-year-olds, so the polynomial's 56-point dive
+        happens over two years that hold not one observation to argue with it.</p>
 
       <p>The book's own summary is that "the extra flexibility in the
         polynomial produces undesirable results at the boundaries, while the natural

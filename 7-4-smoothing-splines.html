@@ -1,0 +1,417 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>7.5 · Smoothing splines — ISLP Plainly</title>
+<meta name="description" content="ISLP section 7.5 in plain language: one equation that is a loss plus a penalty on roughness, why its answer is a natural cubic spline with a knot at every distinct age, what effective degrees of freedom counts, the leave-one-out formula for choosing lambda, and a browser check that deleting an observation and refitting really does agree with the shortcut to twelve decimal places. Three live demos fit everything on the book's real 3,000-row Wage data.">
+<link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css">
+<link rel="stylesheet" href="assets/css/style.css">
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/contrib/auto-render.min.js"></script>
+<script defer src="assets/js/plots.js"></script>
+<script defer src="assets/js/nav.js"></script>
+<script defer src="assets/data/ch07-data.js"></script>
+<script defer src="assets/js/stats.js"></script>
+<script defer src="assets/js/demos/sm-shrink.js"></script>
+<script defer src="assets/js/demos/sm-fit.js"></script>
+<script defer src="assets/js/demos/sm-check.js"></script>
+<script defer src="assets/js/common.js"></script>
+</head>
+<body>
+
+<a class="skip-link" href="#main">Skip to content</a>
+
+<header class="topbar">
+  <button class="icon-btn" data-sidebar-toggle aria-label="Open navigation menu" aria-controls="sidebar">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 6h16M4 12h16M4 18h16"/></svg>
+  </button>
+  <span class="topbar-title">7.5 · Smoothing splines</span>
+</header>
+
+<div class="app">
+
+  <!-- ======================= sidebar ======================= -->
+  <aside class="sidebar" id="sidebar">
+    <div class="brand">
+      <span class="logo">∑</span>
+      <a href="index.html">ISLP Plainly</a>
+    </div>
+
+    <nav class="side-nav" aria-label="Site navigation"></nav>
+
+    <div class="side-foot">
+      <button class="theme-btn" data-theme-toggle type="button">
+        <svg class="sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2m0 16v2M4.9 4.9l1.4 1.4m11.4-11.4 1.4 1.4M2 12h2m16 0h2M19.1 4.9l-1.4 1.4M4.9 19.1l-1.4 1.4"/></svg>
+        <svg class="moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg>
+        <span class="theme-label">Dark mode</span>
+      </button>
+    </div>
+  </aside>
+
+  <!-- ======================= main ======================= -->
+  <main id="main">
+
+    <div class="page-head">
+      <p class="eyebrow">Chapter 7 · section 7.5 · book pages 300–303</p>
+      <h1>Smoothing splines</h1>
+      <p class="lede">Section 7.4 made you choose the knots, and then choose how many of them.
+        This section throws both questions away. Ask instead for the smoothest curve that fits
+        the data well — write that demand down as one line of arithmetic, a loss plus a
+        penalty on roughness — and the answer turns out to be something you have already
+        met: a natural cubic spline with a knot at every distinct age, shrunk toward a
+        straight line by a single number. One tuning parameter instead of two, and a formula
+        that picks it without refitting anything.</p>
+    </div>
+
+    <section id="reading">
+      <h2>Reading</h2>
+      <ul class="reading">
+        <li><span class="r-label">Read</span>
+          <span class="r-body">Section 7.5 in full (pp. 300–303). Two short subsections:
+            one defines the smoothing spline and describes what its answer looks like, the
+            other chooses the tuning parameter. Three numbered equations — (7.11), (7.12),
+            (7.13) — one unnumbered formula printed after them, and Figure 7.8 with two
+            curves on it.</span></li>
+        <li><span class="r-label">Skim</span>
+          <span class="r-body">Equation (7.11) itself, until the two terms and the knob
+            between them are clear. Everything else in the section is a consequence of that
+            single line: the shape of the answer, the matrix of smoother values, the count
+            of effective degrees of freedom, and the leave-one-out shortcut.</span></li>
+        <li><span class="r-label">Then</span>
+          <span class="r-body">Section 7.6, which stops fitting global functions of age
+            altogether and estimates each point from its own neighbourhood.</span></li>
+      </ul>
+
+      <div class="keybox">
+        <p class="keybox-title">Key ideas</p>
+        <p>The whole method is one equation: minimise the usual squared-error loss
+          <em>plus</em> $\lambda \int g''(t)^2\,dt$, the squared second derivative of the
+          fitted function, integrated over the predictor. Second derivative is roughness —
+          zero for a straight line, large for something wiggly — so $\lambda$ is a dial
+          between the best fit and the flattest curve. The book's result: the minimiser is
+          a <strong>natural cubic spline with a knot at every distinct value of
+          $x$</strong>, shrunk by $\lambda$; you never choose knots or their number again.
+          The fitted values are one matrix, $S_\lambda$, times the response (7.12), and
+          the sum of that matrix's diagonal, $\mathrm{df}_\lambda = \sum_i \{S_\lambda\}_{ii}$
+          (7.13), is what "$n$ effective degrees of freedom" means. $\lambda$ is chosen by
+          leave-one-out cross-validation, which for a smoother costs about one fit:
+          divide each residual by $1 - \{S_\lambda\}_{ii}$ and sum the squares.</p>
+      </div>
+    </section>
+
+    <section id="penalty">
+      <h2>1. Loss plus a penalty</h2>
+
+      <p>Here is the whole method, and the book prints it as equation (7.11):</p>
+
+      $$\min_g\;\; \sum_{i=1}^{n} \bigl(y_i - g(x_i)\bigr)^2 \;+\; \lambda \int g''(t)^2\,dt \qquad(7.11)$$
+
+      <p>The first term is the one you have been using all book: how badly
+        $g$ fits the points. The second is new. $g'$ is the slope of the curve at a place;
+        $g''$ is the rate at which that slope is changing, which the book calls
+        "a measure of its roughness: it is large in absolute
+        value if $g(t)$ is very wiggly near $t$, and it is close to zero
+        otherwise". Squaring it and integrating over the range of $t$ turns
+        wiggles into a number, so that $\lambda$ can charge rent for them. The book's aside
+        after that sentence is worth keeping: the second derivative of a straight line is
+        zero — a perfectly smooth line costs nothing at all.</p>
+
+      <p>So the two extremes of $\lambda$ are forced, and the book states both. At
+        $\lambda = 0$ the penalty is switched off, the fit is told only to fit, and the
+        answer interpolates the data — "very jumpy". At
+        $\lambda = \infty$ any wiggle is infinitely expensive, so the only surviving curve
+        is one with no second derivative anywhere: the least squares straight line. Every
+        value in between buys a compromise, and the demo below is that compromise on a
+        dial, with the two ends drawn behind it in grey.</p>
+
+      <figure class="demo" id="demo-sm-shrink">
+        <div class="demo-body grid2">
+          <canvas id="sm-sh-plot"></canvas>
+          <canvas id="sm-sh-path"></canvas>
+        </div>
+        <div class="demo-controls">
+          <span class="ctrl">
+            <label for="sm-sh-l">log<sub>10</sub> λ</label>
+            <input type="range" id="sm-sh-l" min="-6" max="16" step="0.1" value="2">
+          </span>
+          <span class="ro" id="sm-sh-df">…</span>
+          <span class="ro" id="sm-sh-lam">…</span>
+          <span class="ro" id="sm-sh-rss">…</span>
+          <span class="ro" id="sm-sh-rough">…</span>
+          <span class="ro" id="sm-sh-gap">…</span>
+          <span class="ro" id="sm-sh-zero">…</span>
+          <span class="ro" id="sm-sh-same">…</span>
+        </div>
+        <figcaption><strong>Play with it:</strong> equation (7.11) fitted live on all 3,000
+          rows of the Wage data, from a basis of one intercept, one straight line and one
+          column per interior knot — the natural-spline combination of $|x-\xi|^3$ columns
+          (one for each of the 59 interior distinct ages) that keeps the fit linear past the
+          boundary ages — with the roughness penalty $\int g''^2$ computed exactly as a
+          matrix in those coordinates.
+          <em>Left</em> — the scatter, the current curve in blue, and behind it the two ends
+          of the dial in grey: $\lambda = 0$ (the wild natural spline through every age
+          mean) and $\lambda \to \infty$ (the dashed straight line). <em>Right</em> — the
+          price of smoothness, RSS against the effective degrees of freedom that bought it,
+          with the grey dots marking the two ends. Drag the slider to
+          <strong>the far left</strong> ($\log_{10}\lambda = -6$) and the readouts print
+          df 61.00, RSS 4,686,411, roughness 82,898 — then to <strong>the far right</strong>
+          (16) for df 2.00, RSS 5,022,216, roughness 0.0000 and a distance from the line of
+          0.0. The slider is $\lambda$ on a log scale because that is the book's own
+          language; the size of $\lambda$ itself depends on measuring age in years and wage
+          in thousands of dollars, so the readouts lead with effective degrees of freedom,
+          which does not. No random number is drawn anywhere in this demo and nothing is
+          simulated.</figcaption>
+      </figure>
+
+      <p>At the right-hand end the readouts print RSS <strong>5,022,216</strong> — and that
+        is not a coincidence, it is the same fit. Page 7.2's basis demo prints exactly this
+        number when its degrees-of-freedom slider sits at 1 in the powers family: the least
+        squares straight line, which is what this method becomes as $\\lambda \\to \\infty$
+        — the second of the book's two forced limits, arrived at here from the other side.
+        The left-hand end gives RSS
+        <strong>4,686,411</strong> with roughness 82,898, and the entire span between the
+        wiggliest answer this method can produce and the straightest one is 335,805 in
+        residual sum of squares.</p>
+
+      <p>Two details in that left-hand end are worth stopping on, because they are where
+        this data set quietly departs from the book's general statement. The book says there
+        "will be a knot at each training observation,
+        $x_1,\ldots,x_n$" and that effective degrees of freedom "decrease
+        from $n$ to 2". Here $n$ is 3,000, but age takes only
+        <strong>61 distinct values</strong> between 18 and 80 — no man aged 78 or 79 appears
+        in the table at all — so there are 59 interior knots and the top of the range is 61,
+        not 3,000. And the $\lambda = 0$ fit cannot interpolate 3,000 points, because men of
+        the same age earn different amounts: it hits all 61 age means exactly, and the RSS
+        it leaves behind, 4,686,411, is nothing but the spread between men who share an age.
+        No function of age alone can get under that number, and the demo's <em>λ = 0</em>
+        readout shows the fit's RSS landing on it to the last printed digit — the same
+        figure that an ordinary natural spline with those 59 knots returns, which is the
+        book's claim that the minimiser of (7.11) <em>is</em> a natural cubic spline, at
+        $\lambda = 0$ without the shrinking.</p>
+
+      <p>The same readout prints one more number to file away: at $\lambda = 0$ the largest
+        leverage, the largest single $\{S_\lambda\}_{ii}$, is
+        <strong>1.000000000000</strong>. One age in this table is occupied by exactly one
+        man — he is 77 — and with no penalty to stop it the fit memorises him completely.
+        Hold on to that until section 3.</p>
+    </section>
+
+    <section id="choosing">
+      <h2>2. Choosing λ: 6.8 degrees of freedom</h2>
+
+      <p>If you do not choose knots, what do you choose? $\lambda$. And once $\lambda$ is
+        the only decision left, the book needs two more pieces of machinery to describe it.
+        The first is that the fit is linear in the response: the fitted values are one
+        fixed matrix times $y$, $\hat{g}_\lambda = S_\lambda y$ (7.12), where $S_\lambda$
+        depends on the $x$'s and on $\lambda$ but not on the $y$'s. The second is the count
+        that gives that matrix meaning: the <strong>effective degrees of freedom</strong>
+        $\mathrm{df}_\lambda = \sum_i \{S_\lambda\}_{ii}$ (7.13), the sum of its diagonal.
+        The book's summary is that as $\lambda$ runs from 0 to infinity these "decrease from
+        $n$ to 2" — and on this data set, as the last section said, from 61 to 2, with 2
+        being the straight line and 61 the natural spline through all 61 age means.</p>
+
+      <p>Now pick $\lambda$. The book's suggestion is cross-validation, and its point is
+        that leave-one-out is free here. Deleting one observation and refitting is normally
+        $n$ separate fits; for a smoother it is one line of arithmetic:</p>
+
+      $$\mathrm{RSS}_{\mathrm{cv}}(\lambda) \;=\; \sum_{i=1}^{n}\bigl(y_i - \hat g_\lambda^{(-i)}(x_i)\bigr)^2 \;=\; \sum_{i=1}^{n}\left(\frac{y_i - \hat g_\lambda(x_i)}{1 - \{S_\lambda\}_{ii}}\right)^2$$
+
+      <p>The left side is ordinary leave-one-out: fit everything except man $i$, see how
+        badly that fit misses man $i$. The right side is the same number computed from the
+        fit to <em>all</em> the data, by dividing his residual by $1$ minus his own
+        leverage. Section 3 of this page checks that claim the slow way. For now, the
+        consequence: search over $\lambda$, evaluate that sum, take the smallest, and you
+        have Figure 7.8.</p>
+
+      <figure class="demo" id="demo-sm-fit">
+        <div class="demo-body grid2">
+          <canvas id="sm-fi-curves"></canvas>
+          <canvas id="sm-fi-cv"></canvas>
+        </div>
+        <div class="demo-controls">
+          <span class="ctrl">
+            <label for="sm-fi-df">red df</label>
+            <input type="range" id="sm-fi-df" min="2" max="60" step="0.5" value="16">
+          </span>
+          <span class="ro" id="sm-fi-dfread">…</span>
+          <span class="ro" id="sm-fi-rss">…</span>
+          <span class="ro" id="sm-fi-cvread">…</span>
+          <span class="ro" id="sm-fi-gap">…</span>
+        </div>
+        <figcaption><strong>Play with it:</strong> the book's Figure 7.8, redrawn live.
+          <em>Left</em> — the scatter with two smoothing splines: the red curve asked for by
+          its effective degrees of freedom (slider, 2 to 60, default 16 — exactly the
+          book's setting) and the blue curve whose $\lambda$ was found here by minimising the
+          leave-one-out formula above over a grid of 301 values of
+          $\log_{10}\lambda$ and then refining. <em>Right</em> — the criterion itself,
+          leave-one-out RSS against the effective degrees of freedom it was bought with; the
+          red dashed line is wherever your slider has the red curve, and the blue dot is the
+          minimum. Everything is fitted on all 3,000 rows; the book does not say how many
+          rows its figure used, so these curves are ours rather than a copy of its pixels.
+          The vertical scales are fixed so that the two panels can be compared across pages.
+          No random number is drawn anywhere in this demo and nothing is simulated.</figcaption>
+      </figure>
+
+      <p>The book reports that leave-one-out chose a smoothing spline with
+        <strong>6.8 effective degrees of freedom</strong>. Ours comes out at
+        <strong>6.82</strong> — the same decision, to the digit the book prints, from
+        an implementation that never saw the book's code: a truncated-power natural spline
+        basis at every distinct age, an exactly integrated roughness penalty, the objective
+        solved as a ridge problem, and the criterion searched on the log scale. At that
+        minimum the criterion reads 4,780,152, or a leave-one-out mean squared error of
+        <strong>1,593.38</strong> — inside the band of ten-fold values page 7.3 printed for
+        its splines (1,591.5 to 1,593.8), which is about as much agreement as two different
+        validation schemes ever show.</p>
+
+      <p>The book also says of its two curves that there is "little
+        discernible difference" between them and that the 16-degree-of-freedom one
+        "seems slightly wigglier". Both halves of that are numbers, so the demo prints
+        them. The largest gap anywhere between the red and blue curves is
+        <strong>5.2</strong> thousand dollars (at age 70), and the mean gap over the whole
+        age range is 1.7 — on wages running from about 60 to 130, that is the "little
+        discernible difference". And the wiggling has a price that RSS barely shows: at
+        df 16 the red curve's RSS is 4,747,460 against the blue curve's 4,761,557, a
+        difference of 0.3 percent, while its roughness $\int g''^2$ is
+        <strong>25.6 against 1.27</strong> — twenty times the wiggle, bought with a third
+        of a percent of fit. That is the overfitting of section 7.1 in a new outfit.</p>
+
+      <p>The right-hand panel is worth reading slowly, because it is the third time this
+        book has shown you a cross-validation curve and every time it has been flat. The
+        criterion falls 248,553 on the way into its minimum — from 5,028,705 at the
+        straight line to 4,780,152 at df 6.82 — and then climbs only 83,546 over the next
+        fifty-three degrees of freedom, reaching 4,863,698 at df 60. Expressed as
+        percentages of the minimum: df 12 is 0.11 percent above it, df 30 is 0.68 percent,
+        df 56 is 1.49 percent. The straight line, at 5.20 percent, is genuinely too stiff —
+        this is the one place in the chapter where the validation curve rejects an endpoint
+        decisively — but almost anything between about 5 and 40 degrees of freedom would
+        have told you a story that matches the data about equally well.</p>
+
+      <p>One loose end, and the previous section predicted it. At exactly df 61 the
+        criterion does not have a minimum to speak of: it has a division by zero. That is
+        the 77-year-old whose leverage at $\lambda = 0$ is exactly 1.000000000000 — one
+        observation at an age all his own, fitted perfectly, so $1 - \{S_\lambda\}_{ii}$
+        vanishes and the formula asks for his residual over zero. The search never goes
+        there, but the right-hand panel does run right up to it, and the last few points
+        before df 61 are the criterion beginning to climb.</p>
+    </section>
+
+    <section id="shortcut">
+      <h2>3. The shortcut, checked</h2>
+
+      <p>The leave-one-out formula is doing something that deserves suspicion. It says that
+        the fit you would have got had man $i$ never existed is available from the fit that
+        <em>did</em> include him — simply by dividing his residual by $1$ minus his
+        leverage. The book's phrasing is that it lets you "compute each of
+        these leave-one-out fits using only $\hat{g}_\lambda$, the original fit to
+        all of the training observations". That is an exact algebraic claim, and
+        this site tests exact claims by doing the expensive thing anyway.</p>
+
+      <p>So the demo below deletes the first man at each of the 61 distinct ages, one at a
+        time, and for each of them solves the $61\times61$ normal equations again from
+        scratch with that single observation's row removed — same knots, same $\lambda$,
+        one rank-one piece of $Z'Z$ and $Z'y$ gone. Then it compares the book's shortcut
+        against the answer the fresh solve gives.</p>
+
+      <figure class="demo" id="demo-sm-check">
+        <div class="demo-body grid2">
+          <canvas id="sm-ck-plot"></canvas>
+          <canvas id="sm-ck-res"></canvas>
+        </div>
+        <div class="demo-controls">
+          <span class="ctrl">
+            <label for="sm-ck-df">df</label>
+            <input type="range" id="sm-ck-df" min="2" max="40" step="0.1" value="16">
+          </span>
+          <span class="ro" id="sm-ck-dfread">…</span>
+          <span class="ro" id="sm-ck-n">…</span>
+          <span class="ro" id="sm-ck-max">…</span>
+          <span class="ro" id="sm-ck-sum">…</span>
+          <span class="ro" id="sm-ck-amp">…</span>
+        </div>
+        <figcaption><strong>Play with it:</strong> the leave-one-out shortcut, verified by
+          refitting. <em>Left</em> — the smoother at the slider's degrees of freedom, with
+          the 61 men who get deleted marked in red: the first man in the table at each
+          distinct age, so the sample is fixed, spread over the whole age range, and
+          reproducible from this page's source — no random number is drawn anywhere in this
+          demo. <em>Right</em> — what the formula does to each of those 61 men: grey dots
+          are the residuals the fit to all 3,000 rows reports, red rings are the same men's
+          leave-one-out residuals, which is what the fit would have reported had each of
+          them never turned up. The two readouts that matter are <em>largest
+          |shortcut − refit|</em>, the worst disagreement between the formula and a genuine
+          delete-and-refit over all 61 men, and <em>sum of squares</em>, the leave-one-out
+          total each route arrives at. Nothing is simulated.</figcaption>
+      </figure>
+
+      <p>The answer, at the default 16 degrees of freedom: the largest disagreement over all
+        61 deletions is <strong>1.8 × 10<sup>−13</sup></strong> thousand dollars, and both
+        routes produce the same leave-one-out sum of squares, <strong>115,491.5868</strong>,
+        to every digit printed. In ordinary money that worst disagreement is under two
+        ten-billionths of a dollar. The same check at df 3, at the cross-validated 6.8 and at
+        df 40 stays below 2 × 10<sup>−11</sup> — the size of rounding in double precision,
+        not the size of an approximation. The formula is exact, and the demo re-proves it
+        every time you move the slider.</p>
+
+      <p>The right-hand panel shows the mechanism, and it is worth a sentence because it is
+        the whole content of the formula. A residual $y_i - \hat g_\lambda(x_i)$ from the
+        full fit is <em>optimistic</em>: man $i$ was part of the fit that judged him, and
+        his own leverage $\{S_\lambda\}_{ii}$ is how much of that judgment he contributed.
+        Dividing by $1 - \{S_\lambda\}_{ii}$ inflates his residual to what it would have
+        been without him, and the <em>largest ÷(1 − S<sub>ii</sub>)</em> readout is the
+        biggest such correction in the sample: <strong>1.2314</strong> at df 16, meaning the
+        worst-affected man's residual grows by 23 percent. At df 3 it is 1.0173 and the
+        residuals are barely touched, because a stiff fit spreads its weight evenly and
+        leans on no one man; at df 40 it is 1.4178, because a fit that flexible is well on
+        its way to memorising each observation. That ratio is
+        also the reason the criterion has a hole at df 61: wherever the leverage reaches 1,
+        the correction is a division by zero.</p>
+
+      <div class="callout ok">
+        <p class="callout-title">Section 7.5 in one line</p>
+        <p>Throw away the knots and pay for wiggle instead: the function that minimises
+          squared error plus $\lambda$ times roughness is a natural cubic spline with a knot
+          at every distinct value of the predictor, shrunk toward a straight line by
+          $\lambda$; the sum of its smoother matrix's diagonal is what "$n$ effective
+          degrees of freedom" means; and leave-one-out picks $\lambda$ by dividing each
+          residual by one minus its leverage, which this page checked against 61 genuine
+          refits that never disagreed by more than a hundred-billionth of a dollar.</p>
+      </div>
+    </section>
+
+    <footer style="margin-top:64px;font-size:13.5px;color:var(--muted);">
+      <p class="further">Source: ISLP, Section 7.5 (pp. 300–303), Equation (7.11) to (7.13),
+        the leave-one-out formula printed after (7.13), and Figure 7.8. Every curve, residual
+        sum of squares, roughness penalty, effective degree of freedom and leave-one-out
+        criterion on this page is fitted in your browser from the book's own Wage data set —
+        3,000 observations, ages 18 to 80, 79 of them above
+        <span class="usd">$</span>250,000 — as shipped with the book's Python package.
+        Nothing is simulated, and no random number is drawn anywhere on this page: the 61 men
+        checked in the third demo are the first in the table at each distinct age. Four
+        conventions are ours and are stated where they are used: the knots are placed at
+        every distinct age, which is the book's own rule and gives 59 interior knots between
+        the boundary ages 18 and 80, so effective degrees of freedom run from 61 to 2 on this
+        data rather than from $n$ to 2; the roughness penalty $\int g''(t)^2\,dt$ is
+        integrated over the observed age range, where $g''$ lives; the objective is solved in
+        an orthonormalised basis and $\lambda$ is searched on a log scale, which changes the
+        units of $\lambda$ but not the fitted curve, the degrees of freedom or the
+        cross-validated choice; and Figures 7.8's two curves are ours, fitted on all 3,000
+        rows, since the book does not say how many rows its figure used.</p>
+      <p>ISLP Plainly — <span data-year>2026</span></p>
+    </footer>
+  </main>
+
+  <!-- ======================= page TOC ======================= -->
+  <details class="page-toc" id="page-toc" open>
+    <summary>On this page</summary>
+    <p class="toc-title">On this page</p>
+    <nav aria-label="Table of contents">
+      <ol></ol>
+    </nav>
+  </details>
+</div>
+
+<div class="scrim" id="scrim"></div>
+
+</body>
+</html>

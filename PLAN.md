@@ -427,12 +427,13 @@ Chapter 5 (harnesses `/tmp/opencode/ch5_check.py` for structure and
   reader sees, and the reference implementations share no code with the
   browser.
 
-- **Chapter 7, sections 7.1–7.4 (harnesses `/tmp/opencode/ch7_page_probe.py`
+- **Chapter 7, sections 7.1–7.5 (harnesses `/tmp/opencode/ch7_page_probe.py`
   and `/tmp/opencode/ch7_readouts.py` — they race on the same scratch
   directory, so run one at a time — with the independent Python references
   `/tmp/opencode/ch7_ref.py`, `ch7_73_ref.py`, `ch7_73_fast.py`,
-  `ch7_73_cv.py` and `ch7_73_claim.py`).** Three pages, eleven demos, all
-  fitted in the browser on all 3,000 rows of the book's Wage data. §7.1 is
+  `ch7_73_cv.py`, `ch7_73_claim.py` and `ch7_75_ref.py`).** Four pages,
+  fourteen demos, all fitted in the browser on all 3,000 rows of the book's
+  Wage data. §7.1 is
   polynomial regression: the fitted curve with its pointwise 2× band at any
   degree 1–15, the logistic fit for the 79 men above
   <span class="usd">$</span>250,000 with a Wald band, and the ten-fold CV
@@ -449,7 +450,17 @@ Chapter 5 (harnesses `/tmp/opencode/ch5_check.py` for structure and
   width at age 80; Figure 7.6's ten-fold CV curves for both families with
   the per-fold standard error and a reshuffle button; and Figure 7.7's
   degree-15 polynomial against a df-15 natural spline, magnified onto the
-  last ten years of age.
+  last ten years of age. §7.5 is smoothing splines, three demos: equation
+  (7.11)'s loss-plus-penalty on a λ dial whose two ends print the λ = 0
+  natural spline through all 61 age means (RSS 4,686,411 — nothing but the
+  spread between men who share an age, and the same figure ISLP's `ns()`
+  returns at those knots) and the least squares line (5,022,216 — page 7.2's
+  df-1 powers fit, arrived at by driving λ to infinity); Figure 7.8's red
+  and blue curves with the leave-one-out criterion beside them, our minimum
+  at df 6.82 against the book's 6.8; and the leave-one-out shortcut checked
+  the slow way — the first man at each distinct age deleted, one at a time,
+  61 rank-one refits per slider position — where formula and refit agree to
+  1.8 × 10<sup>−13</sup>.
 - **What the Chapter 7 numbers rest on.** Every readout was recomputed
   independently in Python from ISLP's own `bs`/`ns`/`poly` transforms and
   numpy least squares: §7.3's largest fitted-value gap between two
@@ -464,7 +475,14 @@ Chapter 5 (harnesses `/tmp/opencode/ch5_check.py` for structure and
   rather than assumed: a raw one-knot cubic design has a condition number of
   8.4 million (the degree-15 one, 8 × 10³³), and a degree-4 polynomial
   against a df-4 natural spline still disagrees by 14.3 at the far edge,
-  not by nothing.
+  not by nothing. §7.5's numbers rest on `ch7_75_ref.py`: the λ = 0 fit was
+  cross-checked against ISLP's own `ns()` at the 59 interior ages (identical
+  RSS to seven digits), its leverage is exactly 1/n at every age — the
+  77-year-old's is 1.000000000000, which is why the leave-one-out criterion
+  divides by zero exactly there — and the shortcut check's sum of squares
+  (115,491.5868) and amplifier 1/(1 − S<sub>ii</sub>) (1.2314 at df 16,
+  1.0173 at df 3, 1.4178 at df 40) were recomputed by deleting each of the
+  61 men in numpy.
 - **Honest framing, stated on the page where it matters.** Figures 7.3,
   7.4 and 7.7 are fitted on all 3,000 rows although the book says it plots
   an unidentified "subset", so they are our fits and say so. Our CV minima
@@ -476,11 +494,21 @@ Chapter 5 (harnesses `/tmp/opencode/ch5_check.py` for structure and
   the same numbers the lab prints. Basis columns are orthonormalised before
   fitting, so the coefficients are not the book's; the curves, residuals
   and standard errors are, and section 7.3's demo proves that numerically.
+  §7.5 says out loud where the data departs from the book's general
+  statements: effective degrees of freedom run 61 to 2, not n to 2, because
+  age takes only 61 distinct values (no 78- or 79-year-olds appear at all);
+  λ = 0 interpolates the 61 age means rather than 3,000 points, since men of
+  one age earn different amounts; and the leave-one-out formula has a hole
+  at df 61, at that single 77-year-old. Figure 7.8's two curves are ours —
+  the book does not say how many rows its figure used — and λ itself is
+  basis-dependent, so readouts lead with effective degrees of freedom.
 
 ## Next
 
-Ask for a chapter by name. Chapters 1–6 are built; **Chapter 7 (Moving
-Beyond Linearity) is the natural next one**. For a new chapter:
+Ask for a chapter by name. Chapters 1–6 are built, and Chapter 7 (Moving
+Beyond Linearity) is four of its six pages deep — §7.6 Local Regression
+(Figures 7.9 and 7.10) and §7.7 Additive Models, Trees and Related Methods
+(Figure 7.11, plus the lab) finish it. For a new chapter:
 extract its `_text/chNN.txt`, add its `sections` to `assets/js/nav.js`,
 copy reusable demos from `10days_islp/site/assets/js/demos/`, write its new
 demos, capture lab and exercise outputs with a `tools/labNN_capture.py` /

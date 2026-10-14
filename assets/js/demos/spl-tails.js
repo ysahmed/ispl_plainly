@@ -34,7 +34,20 @@
   var elPoly = document.getElementById('st-poly');
   var elNat = document.getElementById('st-nat');
   var elGap = document.getElementById('st-gap');
+  var elCounts = document.getElementById('st-counts');
   if (!elDeg || !elDf || !elDegread || !elDfread || !elPoly || !elNat || !elGap) return;
+
+  /* How many men the table holds at the four ages the right panel ends on.
+     The polynomial's peak falls between the last two of them, where there is
+     no observation at all for it to be right about. */
+  if (elCounts) {
+    elCounts.textContent = 'men aged 77 · 78 · 79 · 80: ' + [77, 78, 79, 80].map(
+      function (a) {
+        var k = 0, r;
+        for (r = 0; r < age.length; r++) if (age[r] === a) k++;
+        return k;
+      }).join(' · ');
+  }
 
   var polyCache = {}, natCache = {};
 
