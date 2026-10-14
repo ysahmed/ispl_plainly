@@ -177,6 +177,8 @@
       rss: rss, tss: tss, r2: r2,
       adjr2: 1 - (1 - r2) * (n - 1) / df,
       rse: rse, sigma2: sigma2,
+      // (X'X)^-1 — chapter 7 needs it to put a pointwise band around a fit
+      inv: inv,
       F: F, fP: fPvalue(F, k - 1, df)
     };
   }
@@ -587,6 +589,318 @@
     return ids;
   }
 
+  /* ======================================================================
+     Chapter 7 — moving beyond linearity.
+
+     Everything in this chapter is the same idea wearing different clothes:
+     pick a fixed, known family of functions b1..bK (a polynomial, a set of
+     step indicators, a spline), then fit a standard linear model in those
+     columns.  What follows builds those families, and the one genuinely new
+     estimator — logistic regression by iteratively reweighted least
+     squares, which chapters 3 to 6 never needed because chapter 4 quoted the
+     book's published coefficients instead of fitting a model.
+     ====================================================================== */
+
+  /* Orthonormalise basis columns with modified Gram-Schmidt plus one
+     reorthogonalisation pass (two passes is what makes a degree-15
+     polynomial come out accurate rather than garbage).  Besides the
+     unit-norm columns this returns `map`, the triangular change of basis,
+     so exactly the same rotation can be applied to any other x — which is
+     what lets a fitted basis be evaluated on a new grid. */
+  function ortho(cols, r) {
+    var m = cols.length, N = cols[0].length, i, j, k;
+    var q = [], T = [];
+    for (i = 0; i < m; i++) {
+      q.push(new Array(N));
+      T.push(new Array(m).fill(0));
+      T[i][i] = 1;
+    }
+    for (i = 0; i < m; i++) {
+      var v = cols[i].slice(), t = T[i].slice(), s, nrm;
+      for (k = 0; k < 2; k++) {                    // 2 passes = reorthogonalise
+        for (j = 0; j < i; j++) {
+          s = 0;
+          for (r = 0; r < N; r++) s += q[j][r] * v[r];
+          if (s === 0) continue;
+          for (r = 0; r < N; r++) { v[r] -= s * q[j][r]; t[r] -= s * T[j][r]; }
+        }
+      }
+      nrm = 0;
+      for (r = 0; r < N; r++) nrm += v[r] * v[r];
+      nrm = Math.sqrt(nrm);
+      if (!(nrm > 0)) nrm = 1;
+      for (r = 0; r < N; r++) { q[i][r] = v[r] / nrm; T[i][r] = t[r] / nrm; }
+    }
+    return { cols: q, map: T };
+  }
+
+  function applyMap(map, raw) {
+    var m = map.length, N = raw[0].length, out = [], i, j, r, row, w;
+    for (i = 0; i < m; i++) {
+      row = new Array(N).fill(0);
+      for (j = 0; j < map[i].length; j++) {
+        w = map[i][j];
+        if (!w) continue;
+        for (r = 0; r < N; r++) row[r] += w * raw[j][r];
+      }
+      out.push(row);
+    }
+    return out;
+  }
+
+  /* [1, x, x^2, ..., x^deg] — the raw polynomial columns, constant first. */
+  function polyRaw(x, deg, mean) {
+    var cols = [], i, k, c;
+    for (k = 0; k <= deg; k++) {
+      c = new Array(x.length);
+      for (i = 0; i < x.length; i++) c[i] = Math.pow(x[i] - mean, k);
+      cols.push(c);
+    }
+    return cols;
+  }
+
+  /* Orthogonal polynomial basis, ISLP eq. (7.1)'s predictors.
+     Centres x, orthonormalises the raw powers, and drops the constant —
+     which is exactly what R's poly() and ISLP's Poly() do, so the fitted
+     curve and the pointwise band are the same functions the book plots. */
+  function polyBasis(x, deg) {
+    var mean = Stats.mean(x);
+    var raw = polyRaw(x, deg, mean);
+    var o = ortho(raw);
+    var map = o.map.slice(1);                    // the intercept column is separate
+    return {
+      deg: deg, mean: mean, cols: o.cols.slice(1), map: map,
+      apply: function (xNew) { return applyMap(map, polyRaw(xNew, deg, mean)); }
+    };
+  }
+
+  function quantileCuts(x, k) {
+    if (k <= 0) return [];
+    var s = x.slice().sort(function (a, b) { return a - b; }), out = [], i;
+    for (i = 1; i <= k; i++) {
+      var pos = i / (k + 1) * (s.length - 1), lo = Math.floor(pos), hi = Math.ceil(pos);
+      out.push(s[lo] + (pos - lo) * (s[hi] - s[lo]));
+    }
+    return out;
+  }
+
+  function widthCuts(x, k) {
+    if (k <= 0) return [];
+    var lo = Math.min.apply(null, x), hi = Math.max.apply(null, x), out = [], i;
+    for (i = 1; i <= k; i++) out.push(lo + (hi - lo) * i / (k + 1));
+    return out;
+  }
+
+  /* ISLP eq. (7.4): the K+1 indicator columns C0..CK.  The book drops C0
+     from the model (7.5) because the intercept already carries it.  With no
+     cutpoints at all there is a single bin and C0 is 1 everywhere. */
+  function stepRaw(x, cuts) {
+    var cols = [], K = cuts.length, i, j, c, v;
+    for (j = 0; j <= K; j++) {
+      c = new Array(x.length);
+      for (i = 0; i < x.length; i++) {
+        v = x[i];
+        c[i] = j === 0 ? (K === 0 || v < cuts[0] ? 1 : 0)
+          : (j === K ? (v >= cuts[K - 1] ? 1 : 0)
+                     : (v >= cuts[j - 1] && v < cuts[j] ? 1 : 0));
+      }
+      cols.push(c);
+    }
+    return cols;
+  }
+
+  function stepBasis(x, cuts) {
+    return {
+      cuts: cuts.slice(), K: cuts.length,
+      cols: stepRaw(x, cuts).slice(1),            // C1..CK, per (7.5)
+      allCols: stepRaw(x, cuts),
+      apply: function (xNew) { return stepRaw(xNew, cuts).slice(1); },
+      applyAll: function (xNew) { return stepRaw(xNew, cuts); }
+    };
+  }
+
+  /* The truncated power functions of eq. (7.10), before any
+     orthogonalisation: x, x^2, x^3 and (x - xi_j)^3_+ per knot.  Exported
+     because section 7.3's demo fits the same space twice — once in these
+     columns and once in the orthonormal rotation — and needs both. */
+  function truncRaw(x, knots) {
+    var cols = [], i, j, c, v;
+    for (j = 0; j < 3; j++) {
+      c = new Array(x.length);
+      for (i = 0; i < x.length; i++) c[i] = Math.pow(x[i], j + 1);
+      cols.push(c);
+    }
+    for (j = 0; j < knots.length; j++) {
+      c = new Array(x.length);
+      for (i = 0; i < x.length; i++) { v = x[i] - knots[j]; c[i] = v > 0 ? v * v * v : 0; }
+      cols.push(c);
+    }
+    return cols;
+  }
+
+  function truncBasis(x, knots) {
+    var r0 = truncRaw(x, knots), o = ortho(r0);
+    return {
+      knots: knots.slice(), cols: o.cols, map: o.map,
+      apply: function (xNew) { return applyMap(o.map, truncRaw(xNew, knots)); }
+    };
+  }
+
+  /* A natural cubic spline basis, ISLP eq. (7.9) with the two extra
+     boundary constraints of §7.4.2.  Excluding the intercept the space with
+     K interior knots is spanned by
+
+       N0(x) = x
+       Nj(x) = (x - xi_j)^3_+ - ((b - xi_j)/(b - a)) * (x^3 - 3 a x^2)
+
+     which is the truncated power basis with just enough of the global cubic
+     subtracted that the second derivative vanishes at both boundary knots
+     a and b.  Columns are then orthonormalised: same span, same fitted
+     curve, but a design with condition number 1 instead of 10^8.  The raw
+     columns are exported too, for section 7.3's demo, which fits one space
+     in two different sets of coordinates. */
+  function nsRaw(x, knots, a, b) {
+    var cols = [x.slice()], i, j, c, v;
+    for (j = 0; j < knots.length; j++) {
+      c = (b - knots[j]) / (b - a);
+      var col = new Array(x.length);
+      for (i = 0; i < x.length; i++) {
+        v = x[i] - knots[j];
+        col[i] = (v > 0 ? v * v * v : 0) - c * (x[i] * x[i] * x[i] - 3 * a * x[i] * x[i]);
+      }
+      cols.push(col);
+    }
+    return cols;
+  }
+
+  /* df basis columns counting the linear term, so df = K + 1 and the book's
+     "four degrees of freedom leads to three interior knots" holds exactly. */
+  function natSpline(x, df, opts) {
+    opts = opts || {};
+    var a = opts.lo === undefined ? Math.min.apply(null, x) : opts.lo;
+    var b = opts.hi === undefined ? Math.max.apply(null, x) : opts.hi;
+    var knots = opts.knots || quantileCuts(x, df - 1);
+    var o = ortho(nsRaw(x, knots, a, b));
+    return {
+      df: df, knots: knots, lo: a, hi: b, cols: o.cols, map: o.map,
+      apply: function (xNew) { return applyMap(o.map, nsRaw(xNew, knots, a, b)); }
+    };
+  }
+
+  /* A cubic (non-natural) spline: eq. (7.9) with the truncated power basis
+     of (7.10), so df columns need df - 3 interior knots — a cubic already
+     has three, and the knot count is what adds degrees of freedom. */
+  function cubSpline(x, df, opts) {
+    opts = opts || {};
+    var K = Math.max(0, df - 3);
+    var knots = opts.knots || quantileCuts(x, K);
+    var o = truncBasis(x, knots);
+    o.df = df;
+    return o;
+  }
+
+  /* The design matrix [1, b1, ..., bK] for a basis.  With no columns — a
+     model that is only an intercept — the row count has to be passed in. */
+  function design(cols, n) {
+    var N = n === undefined ? (cols.length ? cols[0].length : 0) : n;
+    var X = [], i, r, row;
+    for (r = 0; r < N; r++) {
+      row = [1];
+      for (i = 0; i < cols.length; i++) row.push(cols[i][r]);
+      X.push(row);
+    }
+    return X;
+  }
+
+  /* Ten-fold cross-validation of a basis family.  buildFn(xTrain, yTrain)
+     returns an object with `cols` (the basis at the training x) and
+     `apply(xNew)`.  Returns the mean squared error and the per-fold RSS. */
+  function cvBasis(x, y, folds, buildFn, k) {
+    var n = y.length, i, j, kk, K = k || 10;
+    var err = new Array(n).fill(0), foldRss = [], foldN = [];
+    for (kk = 0; kk < K; kk++) {
+      var tr = [], te = [];
+      for (i = 0; i < n; i++) (folds[i] === kk ? te : tr).push(i);
+      if (!tr.length || !te.length) { foldRss.push(0); foldN.push(0); continue; }
+      var xt = [], yt = [];
+      for (i = 0; i < tr.length; i++) { xt.push(x[tr[i]]); yt.push(y[tr[i]]); }
+      var spec = buildFn(xt, yt);
+      var fit = ols(design(spec.cols), yt);
+      var xte = [];
+      for (i = 0; i < te.length; i++) xte.push(x[te[i]]);
+      var cte = spec.apply(xte), rss = 0;
+      for (i = 0; i < te.length; i++) {
+        var yh = fit.beta[0];
+        for (j = 0; j < cte.length; j++) yh += cte[j][i] * fit.beta[j + 1];
+        err[te[i]] = y[te[i]] - yh;
+        rss += err[te[i]] * err[te[i]];
+      }
+      foldRss.push(rss);
+      foldN.push(te.length);
+    }
+    var s = 0;
+    for (i = 0; i < n; i++) s += err[i] * err[i];
+    return { mse: s / n, rss: s, err: err, foldRss: foldRss, foldN: foldN };
+  }
+
+  /* Logistic regression by iteratively reweighted least squares.  Each step
+     builds the working response z = eta + (y - p)/w with w = p(1-p) and
+     refits by weighted least squares, exactly the algorithm chapter 4
+     described and never had to run.  Standard errors come from the observed
+     information at convergence. */
+  function logit(X, y, opts) {
+    opts = opts || {};
+    var n = X.length, k = X[0].length, i, j, m, it;
+    var beta = new Array(k).fill(0);
+    var ybar = Stats.mean(y);
+    ybar = Math.min(1 - 1e-10, Math.max(1e-10, ybar));
+    beta[0] = Math.log(ybar / (1 - ybar));
+    var maxit = opts.maxit || 50, tol = opts.tol || 1e-10;
+    var w = new Array(n), z = new Array(n), XtWX = null, used = 0;
+
+    for (it = 0; it < maxit; it++) {
+      for (m = 0; m < n; m++) {
+        var eta = 0;
+        for (j = 0; j < k; j++) eta += X[m][j] * beta[j];
+        var p = 1 / (1 + Math.exp(-eta));
+        p = Math.min(1 - 1e-12, Math.max(1e-12, p));
+        w[m] = p * (1 - p);
+        z[m] = eta + (y[m] - p) / w[m];
+      }
+      XtWX = [];
+      var XtWz = [];
+      for (j = 0; j < k; j++) { XtWX.push(new Array(k).fill(0)); XtWz.push(0); }
+      for (m = 0; m < n; m++) {
+        for (i = 0; i < k; i++) {
+          XtWz[i] += X[m][i] * w[m] * z[m];
+          for (j = 0; j < k; j++) XtWX[i][j] += X[m][i] * w[m] * X[m][j];
+        }
+      }
+      var nb = solve(XtWX, XtWz), delta = 0;
+      for (j = 0; j < k; j++) delta += Math.abs(nb[j] - beta[j]);
+      beta = nb;
+      used = it + 1;
+      if (delta < tol) break;
+    }
+
+    var p = new Array(n), ll = 0, dev = 0;
+    var nullDev = -2 * (n * (ybar * Math.log(ybar) + (1 - ybar) * Math.log(1 - ybar)));
+    for (m = 0; m < n; m++) {
+      var e2 = 0;
+      for (j = 0; j < k; j++) e2 += X[m][j] * beta[j];
+      p[m] = 1 / (1 + Math.exp(-e2));
+      p[m] = Math.min(1 - 1e-12, Math.max(1e-12, p[m]));
+      ll += y[m] * Math.log(p[m]) + (1 - y[m]) * Math.log(1 - p[m]);
+      dev += -2 * (y[m] * Math.log(p[m]) + (1 - y[m]) * Math.log(1 - p[m]));
+    }
+    var inv = inverse(XtWX), se = [];
+    for (j = 0; j < k; j++) se[j] = Math.sqrt(inv[j][j]);
+    return {
+      beta: beta, se: se, p: p, inv: inv, iters: used,
+      ll: ll, dev: dev, nullDev: nullDev, mcFadden: 1 - ll / (-nullDev / 2)
+    };
+  }
+
   global.Stats = {
     solve: solve,
     inverse: inverse,
@@ -612,6 +926,22 @@
     pca: pca,
     pcr: pcr,
     pls: pls,
-    kfolds: kfolds
+    kfolds: kfolds,
+    /* Chapter 7 */
+    ortho: ortho,
+    applyMap: applyMap,
+    polyBasis: polyBasis,
+    quantileCuts: quantileCuts,
+    widthCuts: widthCuts,
+    stepBasis: stepBasis,
+    stepRaw: stepRaw,
+    truncRaw: truncRaw,
+    truncBasis: truncBasis,
+    nsRaw: nsRaw,
+    natSpline: natSpline,
+    cubSpline: cubSpline,
+    design: design,
+    cvBasis: cvBasis,
+    logit: logit
   };
 })(window);

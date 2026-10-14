@@ -1,0 +1,386 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>7.2–7.3 · Step functions and basis functions — ISLP Plainly</title>
+<meta name="description" content="ISLP sections 7.2 and 7.3 in plain language: cutting a continuous predictor into bins and fitting a different constant in each, the indicator columns of equation 7.4, logistic regression on the bins for the 79 high earners, and equation 7.7's general basis-function view — polynomials and step functions as two choices out of many, with the fitted curve unchanged by the coordinates you pick. Three live demos fit everything on the book's real 3,000-row Wage data.">
+<link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css">
+<link rel="stylesheet" href="assets/css/style.css">
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/contrib/auto-render.min.js"></script>
+<script defer src="assets/js/plots.js"></script>
+<script defer src="assets/js/nav.js"></script>
+<script defer src="assets/data/ch07-data.js"></script>
+<script defer src="assets/js/stats.js"></script>
+<script defer src="assets/js/demos/step-wage.js"></script>
+<script defer src="assets/js/demos/step-logit.js"></script>
+<script defer src="assets/js/demos/basis-show.js"></script>
+<script defer src="assets/js/common.js"></script>
+</head>
+<body>
+
+<a class="skip-link" href="#main">Skip to content</a>
+
+<header class="topbar">
+  <button class="icon-btn" data-sidebar-toggle aria-label="Open navigation menu" aria-controls="sidebar">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 6h16M4 12h16M4 18h16"/></svg>
+  </button>
+  <span class="topbar-title">7.2–7.3 · Step functions and basis functions</span>
+</header>
+
+<div class="app">
+
+  <!-- ======================= sidebar ======================= -->
+  <aside class="sidebar" id="sidebar">
+    <div class="brand">
+      <span class="logo">∑</span>
+      <a href="index.html">ISLP Plainly</a>
+    </div>
+
+    <nav class="side-nav" aria-label="Site navigation"></nav>
+
+    <div class="side-foot">
+      <button class="theme-btn" data-theme-toggle type="button">
+        <svg class="sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2m0 16v2M4.9 4.9l1.4 1.4m11.4-11.4 1.4 1.4M2 12h2m16 0h2M19.1 4.9l-1.4 1.4M4.9 19.1l-1.4 1.4"/></svg>
+        <svg class="moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg>
+        <span class="theme-label">Dark mode</span>
+      </button>
+    </div>
+  </aside>
+
+  <!-- ======================= main ======================= -->
+  <main id="main">
+
+    <div class="page-head">
+      <p class="eyebrow">Chapter 7 · sections 7.2 and 7.3 · book pages 293–294</p>
+      <h1>Step functions and basis functions</h1>
+      <p class="lede">Section 7.1 let one curve bend. Section 7.2 refuses to draw a curve at
+        all: it throws away the fact that age is continuous, sorts everyone into bins, and
+        fits a flat constant in each one. It is a coarser model and it is deliberately so —
+        nothing is assumed to happen <em>inside</em> a bin. Section 7.3 then points out that
+        this and the polynomial you just met are the same trick wearing different clothes:
+        pick a family of known functions, put them in a linear model, and fit them by least
+        squares. The name of the family is the only decision left.</p>
+    </div>
+
+    <section id="reading">
+      <h2>Reading</h2>
+      <ul class="reading">
+        <li><span class="r-label">Read</span>
+          <span class="r-body">Sections 7.2 and 7.3 in full (pp. 293–294). They are two
+            short pages: equations (7.4) to (7.7) and one figure between them.</span></li>
+        <li><span class="r-label">Skim</span>
+          <span class="r-body">Equation (7.4). The indicator columns are the whole
+            mechanism — once you accept that a column can be "is this observation in bin
+            <em>j</em>?", everything else is the linear model of Chapter 3.</span></li>
+        <li><span class="r-label">Then</span>
+          <span class="r-body">Section 7.4, which keeps the freedom to bend anywhere but
+            insists the bends be smooth and joined. Step functions break; splines bend
+            without breaking.</span></li>
+      </ul>
+
+      <div class="keybox">
+        <p class="keybox-title">Key ideas</p>
+        <p>Cut the range of <em>X</em> into bins with cutpoints
+          $c_1, \ldots, c_K$ and code membership as
+          $K+1$ indicator columns — that is equation (7.4). Fit
+          them by least squares and each bin's fitted value is that bin's own
+          mean, while its coefficient is how far that bin sits above the first.
+          Step functions impose <strong>no structure at all across bins</strong>, which is
+          their freedom and their weakness. Then the generalization: any fixed, known
+          family $b_1(X), \ldots, b_K(X)$ goes into
+          $y = \beta_0 + \sum_j \beta_j b_j(x) + \varepsilon$ and
+          ordinary least squares applies unchanged, standard errors and F tests included.
+          Polynomials are powers; step functions are indicators; splines, next section,
+          are something better behaved. <strong>The fitted curve depends on the span of the
+          basis, never on the coordinates you write it in</strong> — and this page shows
+          that numerically rather than asserting it.</p>
+      </div>
+    </section>
+
+    <section id="steps">
+      <h2>1. Cut the range, fit a constant</h2>
+
+      <p>Choose cutpoints $c_1, c_2, \ldots, c_K$ inside the range of
+        $X$ and build one column per interval:</p>
+
+      $$C_0(X) = I(X < c_1), \quad C_1(X) = I(c_1 \le X < c_2), \quad \ldots,
+        \quad C_K(X) = I(c_K \le X) \qquad(7.4)$$
+
+      <p>where $I(\cdot)$ is 1 when its condition holds and 0 otherwise.
+        Exactly one of these columns is 1 for any value of $X$ — they sum to 1 — so they
+        divide the data into $K+1$ bins. Then fit</p>
+
+      $$y_i \;=\; \beta_0 + \beta_1 C_1(x_i) + \beta_2 C_2(x_i) + \cdots +
+        \beta_K C_K(x_i) + \varepsilon_i \qquad(7.5)$$
+
+      <p>$C_0$ is left out because the intercept already carries it: when
+        $X < c_1$ every predictor in (7.5) is zero, so
+        $\beta_0$ <em>is</em> the mean response below the first cutpoint, and
+        $\beta_j$ is how much higher bin $j$ sits than that first bin. Nothing else is
+        assumed. The curve is not required to rise, to bend, or even to exist between two
+        observations in different bins — it simply jumps.</p>
+
+      <figure class="demo" id="demo-step-wage">
+        <div class="demo-body grid2">
+          <canvas id="sw-plot"></canvas>
+          <canvas id="sw-bins"></canvas>
+        </div>
+        <div class="demo-controls">
+          <span class="ctrl">
+            <label for="sw-k">cutpoints K</label>
+            <input type="range" id="sw-k" min="0" max="8" step="1" value="3">
+          </span>
+          <button class="btn" id="sw-mode" type="button">cutpoints: quantiles</button>
+          <span class="ro" id="sw-kread">…</span>
+          <span class="ro" id="sw-cut">…</span>
+          <span class="ro" id="sw-rse">…</span>
+          <span class="ro" id="sw-r2">…</span>
+          <span class="ro" id="sw-df">…</span>
+          <span class="ro" id="sw-level">…</span>
+        </div>
+        <figcaption><strong>Play with it:</strong> the book's Figure 7.2, left panel —
+          the Wage data fitted by step functions of age, in your browser, on all 3,000 rows.
+          <em>Left</em> — every observation as a grey dot, the stepped fit as the solid
+          line, the cutpoints as dashed verticals, and the pointwise 2× standard error band
+          as the shaded staircase around it. Because a step model has one parameter per
+          bin, both the fit and the band are constant inside a bin: the band is a
+          different height in every bin, widest where the fewest men are.
+          <em>Right</em> — how many men fall in each bin, which is the question behind the
+          cutpoint rule. Drag <em>cutpoints K</em> from 0 (a single constant for everyone)
+          up to 8, and press the mode button to switch between the book's lab choice —
+          cutpoints at the quantiles of age, so the bins hold roughly equal numbers — and
+          cutpoints at equal widths across the age range. Nothing here is simulated, and
+          no random number is used at any point: at the default setting the cutpoints come
+          out as 33.75, 42 and 51, exactly the three numbers <code>pd.qcut(age, 4)</code>
+          picks in the book's lab.</figcaption>
+      </figure>
+
+      <p>At the default setting our four bin means are
+        94.1584, 116.5074, 118.9660 and 116.9398, and the first of them is the book's own
+        lab number to every printed digit. The other three are not. The book's table
+        prints 94.1584, 116.6608, 119.1887 and 116.5717, and the gap — at most four
+        hundred dollars of annual salary — comes entirely from which side of a cutpoint a
+        man aged exactly on it lands. Equation (7.4) writes the intervals as
+        $c_1 \le X < c_2$, closing them on the left;
+        <code>pd.qcut</code> closes them on the right, as
+        $(c_1, c_2]$. Age is recorded in whole years, so
+        88 men are exactly 42 and 82 are exactly 51; those 170 men sit in a different bin
+        under the two rules, and moving 88 salaries between bins moves a mean. Our bins
+        hold 750, 671, 823 and 756 men; the lab's hold 750, 759, 817 and 674. We follow
+        the equation, because that is what the page above prints — but you should know
+        that the book's own figure was not built by following it either.</p>
+
+      <p>Switch the mode button to equal widths and the same three cutpoints become
+        33.5, 49 and 64.5. The fit is no worse on $R^2$
+        — 0.0625 against 0.0595 — but the bins now hold 750, 1,316, 862 and
+        72 men. That last number is the problem. A bin mean has standard error
+        $\hat\sigma/\sqrt{n}$, so the bin holding
+        1,316 men has its level known to about 1.1 thousand dollars and the bin holding 72
+        has its known only to about 4.8 — four times worse — and it is that underpopulated
+        top bin whose level draws the right-hand end of the curve. The quantile cutpoints
+        cost nothing and keep the bins honest; that is why the lab uses them, and why
+        5-year age groups are the biostatisticians' default.</p>
+
+      <p>The book is candid about the weakness of all of this. Its own comment on Figure
+        7.2 is that "the first bin clearly misses the increasing trend of wage with age" —
+        and you can see it in the panel above: the step from 94.16 to 116.51 is the model's
+        entire account of everything between 18 and 34 years old.</p>
+
+      <h2>2. The same bins, a yes-or-no answer</h2>
+
+      <p>Section 7.1 asked whether a man earns more than
+        <span class="usd">$</span>250,000 as a smooth function of age. Ask it again with
+        bins:</p>
+
+      $$\Pr(y_i > 250 \mid x_i) \;=\;
+        \frac{\exp\!\big(\beta_0 + \beta_1 C_1(x_i) + \cdots +
+        \beta_K C_K(x_i)\big)}{1 + \exp\!\big(\beta_0 + \beta_1 C_1(x_i) + \cdots +
+        \beta_K C_K(x_i)\big)} \qquad(7.6)$$
+
+      <figure class="demo" id="demo-step-logit">
+        <div class="demo-body grid2">
+          <canvas id="sl-plot"></canvas>
+          <canvas id="sl-count"></canvas>
+        </div>
+        <div class="demo-controls">
+          <span class="ctrl">
+            <label for="sl-k">cutpoints K</label>
+            <input type="range" id="sl-k" min="0" max="8" step="1" value="3">
+          </span>
+          <button class="btn" id="sl-mode" type="button">cutpoints: quantiles</button>
+          <span class="ro" id="sl-kread">…</span>
+          <span class="ro" id="sl-dev">…</span>
+          <span class="ro" id="sl-p">…</span>
+          <span class="ro" id="sl-pmax">…</span>
+        </div>
+        <figcaption><strong>Play with it:</strong> the book's Figure 7.2, right panel —
+          logistic regression of the event wage > 250 on the indicator columns of
+          equation (7.4), fitted live by iteratively reweighted least squares.
+          <em>Left</em> — the fitted posterior probability as a staircase, with the 95%
+          band around it and, along the top edge, a grey tick for every age at which a high
+          earner was actually observed; the vertical axis is the book's own, 0.00 to 0.20,
+          kept as it is so this panel can be laid over the polynomial panel of Figure 7.1,
+          even though the staircase itself never climbs above about 5% at any setting of
+          the two controls. The band is
+          $p \pm 1.96\,\mathrm{se}(\hat p)$ by the same
+          delta-method argument as the previous page, so in a bin where no high earner was
+          observed at all it pinches down onto the fitted value — push the cutpoints to 8
+          with equal widths and you can find such a bin. <em>Right</em> — the 79 high
+          earners counted inside each bin, written as "events / men", so you can divide
+          them yourself and get the height of the step on the left: this model has one
+          parameter per bin and that parameter <em>is</em> the bin's proportion. The
+          deviance readout is the same comparison section 7.1 made — how much of the null
+          deviance, built from one overall proportion of 79 in 3,000, the bins manage to
+          remove. The cutpoint rule matters more here than it did for wage, because a bin
+          with one high earner in it is a proportion of one.</figcaption>
+      </figure>
+
+      <p>At the default cutpoints the four bins contain 79 high earners split as
+        5, 21, 25 and 28, out of 750, 671, 823 and 756 men — fitted probabilities of 0.67%,
+        3.13%, 3.04% and 3.70%. The deviance falls from the null's 730.5 to 710.4: twenty
+        units of deviance bought with four parameters, from a data set that contains 79
+        events. The degree-4 polynomial of the previous page reached 701.2. Neither is a
+        large improvement, and that is the real finding — a man's age barely predicts
+        whether he is in the top quarter-percent of earners, and no choice of basis will
+        change that.</p>
+
+      <div class="callout warn">
+        <p class="callout-title">A bin is an average, and averages hide slopes</p>
+        <p>Step functions are enormously popular in biostatistics and epidemiology — the
+          book says so, and offers 5-year age groups as its example: bins somebody else
+          already decided on. The cost is visible in the left panel
+          above: inside a bin the model claims wage does not change with age at all, so a
+          genuine upward drift gets reported as a jump at each cutpoint, and the size of
+          that jump depends on where you put the cut. Push the cutpoints slider to 1 and
+          the whole of the trend between 18 and 80 is reduced to a single step at the
+          median age of 42 — with the quantile cutpoints the default mode starts with.</p>
+      </div>
+    </section>
+
+    <section id="basis">
+      <h2>3. One model, many families</h2>
+
+      <p>Section 7.3 makes the general statement that both of the examples so far were
+        special cases of. Fix a family of functions ahead of time —
+        $b_1(X), b_2(X), \ldots, b_K(X)$ — and fit</p>
+
+      $$y_i \;=\; \beta_0 + \beta_1 b_1(x_i) + \beta_2 b_2(x_i) + \cdots +
+        \beta_K b_K(x_i) + \varepsilon_i \qquad(7.7)$$
+
+      <p>The book's emphasis is on <em>fixed and known</em>: you choose the functions
+        before you see the response, they never depend on $y$, and so the model is linear
+        in its unknowns and least squares estimates them exactly as before. Everything
+        Chapter 3 built — coefficient standard errors, confidence intervals, the F test for
+        whether the whole family helps — is available with no modification. For
+        polynomials $b_j(x) = x^j$; for step functions
+        $b_j(x) = I(c_j \le x < c_{j+1})$. Wavelets or Fourier series would do as well.
+        The next section picks the family this chapter is actually about.</p>
+
+      <figure class="demo" id="demo-basis">
+        <div class="demo-body grid2">
+          <canvas id="bs-basis"></canvas>
+          <canvas id="bs-fit"></canvas>
+        </div>
+        <div class="demo-controls">
+          <button class="btn" id="bs-poly" type="button" aria-pressed="true">powers</button>
+          <button class="btn" id="bs-step" type="button" aria-pressed="false">steps</button>
+          <button class="btn" id="bs-cub" type="button" aria-pressed="false">truncated powers</button>
+          <button class="btn" id="bs-ns" type="button" aria-pressed="false">natural spline</button>
+          <span class="ctrl">
+            <label for="bs-knot">degrees of freedom</label>
+            <input type="range" id="bs-knot" min="1" max="8" step="1" value="4">
+          </span>
+          <span class="ro" id="bs-kindread">…</span>
+          <span class="ro" id="bs-df">…</span>
+          <span class="ro" id="bs-rss">…</span>
+          <span class="ro" id="bs-diff">…</span>
+        </div>
+        <figcaption><strong>Play with it:</strong> equation (7.7) fitted four ways, live,
+          on the book's data — nothing is simulated. <em>Left</em> — the basis columns the
+          fit actually uses, one curve per column, with the interior knots of the spline
+          families marked by dashed verticals. <em>Right</em> — the data and the fitted
+          curve those columns produce. Switch families and the curve changes, because the
+          spans differ: that is the modelling decision, and section 7.4 is a whole section
+          on choosing it well. Switch the degrees of freedom and the same family gets more
+          or less room. The readout on the far right is the point of the section: every
+          family here is fitted <em>twice</em>, once in the plain columns the book writes
+          down — powers of standardised age, all $K+1$ indicators with no intercept,
+          raw truncated powers — and once in the orthonormal columns this site uses because
+          they keep the arithmetic well conditioned. The two designs have coefficients
+          that look nothing alike, and the readout reports the largest gap between their
+          two fitted curves. It is zero to machine precision, which is the numerical form
+          of the sentence: least squares sees the span of the basis, not the names of its
+          columns.</figcaption>
+      </figure>
+
+      <p>Two things are worth watching while you press the buttons. The first is
+        <em>df</em>: the slider counts basis columns, excluding the intercept, which is how
+        equation (7.7) counts and how R counts a spline, so degree 4 in the powers family
+        and 4 degrees of freedom in the natural-spline family both mean four columns plus
+        an intercept — five coefficients each, in every family. What 4 does
+        <em>not</em> mean is the same number of knots everywhere: the truncated-power cubic
+        spends three of its columns on $x$, $x^2$
+        and $x^3$ and so reaches df 4 with a single interior
+        knot, while the natural spline starts from one linear term and reaches df 4 with
+        three. The readout prints the knot count beside the family name, so you never have
+        to keep that in your head. The second thing is the RSS readout, which moves when
+        you change families and does not move at all when you change coordinates. At
+        df 4 the four families leave residual sums of squares of 4,771,604 for the powers,
+        4,773,100 for the truncated powers, 4,773,109 for the natural spline and 4,904,687
+        for the steps: the first three are within fifteen hundred of each other and the
+        step function is a hundred and thirty thousand behind, which is section 7.2's
+        weakness measured in the same units as everything else. They are different models,
+        fitted in different spaces, and no amount of reparametrisation will make them
+        agree. What reparametrisation does change is nothing you can see — two of these
+        families can be checked against each other for free, because a cubic spline with no
+        interior knots <em>is</em> a degree-3 polynomial and the two RSS readouts come out
+        identical at 4,777,674. That is the whole claim of this section, and the
+        <em>max |difference|</em> readout is there so that you never have to take it on
+        trust.</p>
+
+      <div class="callout ok">
+        <p class="callout-title">Sections 7.2 and 7.3 in one line</p>
+        <p>A step function is a basis model whose basis is "which bin are you in", and a
+          polynomial is a basis model whose basis is "which power of x is this". Both are
+          fitted by the same least squares, both carry the same inference, and both are
+          only as good as the family you chose. The fitted curve belongs to the span of the
+          basis — the space of functions it can reach — and to nothing else. Two sets of
+          columns that reach the same space produce the same curve to the last digit, which
+          the readout above checks every time you press a button.</p>
+      </div>
+    </section>
+
+    <footer style="margin-top:64px;font-size:13.5px;color:var(--muted);">
+      <p class="further">Source: ISLP, Sections 7.2 and 7.3 (pp. 293–294), Figure 7.2.
+        Every curve, band, bin count and residual sum of squares on this page is fitted in
+        your browser from the book's own Wage data set — 3,000 observations, ages 18 to 80,
+        79 of them above <span class="usd">$</span>250,000 — as shipped with the book's
+        Python package. Nothing is simulated and no random number is drawn anywhere on this
+        page. Two conventions are ours and are stated where they are used: equation (7.4)
+        closes its intervals on the left while the lab's <code>pd.qcut</code> closes them
+        on the right, so our bin means differ from the printed lab table by up to 0.4; and
+        the four families in the last demo are all fitted with quantile cutpoints or
+        quantile knots, the lab's choice, at the settings the slider shows. The basis
+        columns are orthonormalised on the fly, so their signs and scales are ours — the
+        fitted curves, residuals and standard errors are not.</p>
+      <p>ISLP Plainly — <span data-year>2026</span></p>
+    </footer>
+  </main>
+
+  <!-- ======================= page TOC ======================= -->
+  <details class="page-toc" id="page-toc" open>
+    <summary>On this page</summary>
+    <p class="toc-title">On this page</p>
+    <nav aria-label="Table of contents">
+      <ol></ol>
+    </nav>
+  </details>
+</div>
+
+<div class="scrim" id="scrim"></div>
+
+</body>
+</html>

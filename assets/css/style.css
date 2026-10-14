@@ -219,6 +219,7 @@ a:hover { text-decoration: underline; }
   flex: none;
 }
 .badge.done { background: color-mix(in srgb, var(--ok) 15%, transparent); color: var(--ok); border-color: transparent; }
+.badge.partial { background: color-mix(in srgb, var(--warn) 15%, transparent); color: var(--warn); border-color: transparent; }
 
 .side-foot {
   margin-top: auto;

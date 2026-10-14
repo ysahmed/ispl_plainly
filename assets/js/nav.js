@@ -48,7 +48,11 @@
       { href: '6-3-dimension-reduction-methods.html', num: '6.3', label: 'Dimension reduction methods' },
       { href: '6-4-considerations-in-high-dimensions.html', num: '6.4', label: 'Considerations in high dimensions' }
     ] },
-    { n: 7, title: 'Moving beyond linearity', read: 'pp. 289–330', sections: [] },
+    { n: 7, title: 'Moving beyond linearity', read: 'pp. 289–328', sections: [
+      { href: '7-1-polynomial-regression.html', num: '7.1', label: 'Polynomial regression' },
+      { href: '7-2-step-and-basis-functions.html', num: '7.2–7.3', label: 'Step functions and basis functions' },
+      { href: '7-3-regression-splines.html', num: '7.4', label: 'Regression splines' }
+    ] },
     { n: 8, title: 'Tree-based methods', read: 'pp. 331–366', sections: [] },
     { n: 9, title: 'Support vector machines', read: 'pp. 367–398', sections: [] },
     { n: 10, title: 'Deep learning', read: 'pp. 399–468', sections: [] },

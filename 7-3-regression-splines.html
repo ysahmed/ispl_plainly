@@ -1,0 +1,509 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>7.4 · Regression splines — ISLP Plainly</title>
+<meta name="description" content="ISLP section 7.4 in plain language: piecewise polynomials with the joints glued, the truncated power basis of equation 7.8 and 7.10, why a natural cubic spline is forced linear at the edges, how many knots cross-validation actually wants, and what a degree-15 polynomial does at age 80. Four live demos fit everything on the book's real 3,000-row Wage data.">
+<link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css">
+<link rel="stylesheet" href="assets/css/style.css">
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/contrib/auto-render.min.js"></script>
+<script defer src="assets/js/plots.js"></script>
+<script defer src="assets/js/nav.js"></script>
+<script defer src="assets/data/ch07-data.js"></script>
+<script defer src="assets/js/stats.js"></script>
+<script defer src="assets/js/demos/ps-constraints.js"></script>
+<script defer src="assets/js/demos/spl-cubnat.js"></script>
+<script defer src="assets/js/demos/spl-cv.js"></script>
+<script defer src="assets/js/demos/spl-tails.js"></script>
+<script defer src="assets/js/common.js"></script>
+</head>
+<body>
+
+<a class="skip-link" href="#main">Skip to content</a>
+
+<header class="topbar">
+  <button class="icon-btn" data-sidebar-toggle aria-label="Open navigation menu" aria-controls="sidebar">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 6h16M4 12h16M4 18h16"/></svg>
+  </button>
+  <span class="topbar-title">7.4 · Regression splines</span>
+</header>
+
+<div class="app">
+
+  <!-- ======================= sidebar ======================= -->
+  <aside class="sidebar" id="sidebar">
+    <div class="brand">
+      <span class="logo">∑</span>
+      <a href="index.html">ISLP Plainly</a>
+    </div>
+
+    <nav class="side-nav" aria-label="Site navigation"></nav>
+
+    <div class="side-foot">
+      <button class="theme-btn" data-theme-toggle type="button">
+        <svg class="sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2m0 16v2M4.9 4.9l1.4 1.4m11.4-11.4 1.4 1.4M2 12h2m16 0h2M19.1 4.9l-1.4 1.4M4.9 19.1l-1.4 1.4"/></svg>
+        <svg class="moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg>
+        <span class="theme-label">Dark mode</span>
+      </button>
+    </div>
+  </aside>
+
+  <!-- ======================= main ======================= -->
+  <main id="main">
+
+    <div class="page-head">
+      <p class="eyebrow">Chapter 7 · section 7.4 · book pages 295–300</p>
+      <h1>Regression splines</h1>
+      <p class="lede">Section 7.1 made one smooth curve bend all the way across the age
+        range; section 7.2 threw the curve away and fit flat pieces with jumps between them.
+        Splines are the settlement. Cut the predictor into pieces, fit a polynomial in each
+        piece — and then <em>glue</em> the pieces so that the joins do not show. The whole
+        section is about how many pieces, where to cut, how smooth the glue has to be, and
+        what happens at the two ends where there is nothing left to glue to.</p>
+    </div>
+
+    <section id="reading">
+      <h2>Reading</h2>
+      <ul class="reading">
+        <li><span class="r-label">Read</span>
+          <span class="r-body">Section 7.4 in full (pp. 295–300). Five short subsections,
+            equations (7.8) to (7.10), and four figures — the densest stretch of the
+            chapter, and the one you will actually use.</span></li>
+        <li><span class="r-label">Skim</span>
+          <span class="r-body">Equation (7.8) and the truncated power function (7.10).
+            These say one useful thing: a spline fit is an ordinary least squares problem.
+            Once you believe that, every standard error, <em>F</em> test and confidence
+            band from chapter 3 comes along for free.</span></li>
+        <li><span class="r-label">Then</span>
+          <span class="r-body">Section 7.5, which replaces the knots with a smoothness
+            parameter and lets the data decide how wiggly the curve should be. The two
+            are cousins: a smoothing spline and a regression spline with enough knots
+            reach almost the same place.</span></li>
+      </ul>
+
+      <div class="keybox">
+        <p class="keybox-title">Key ideas</p>
+        <p>A <strong>regression spline</strong> splits the range of <em>X</em> at
+          <em>K</em> knots and fits a separate polynomial in each piece, with constraints
+          forcing the pieces to join. Degree <em>d</em> with <em>K</em> knots and
+          <em>d</em>&nbsp;&minus;&nbsp;1 continuous derivatives is the standard choice; in
+          practice that means <strong>cubic</strong>, always. Every constraint imposed
+          removes one degree of freedom, which is why the book counts coefficients the way
+          it does: a cubic spline with <em>K</em> knots costs
+          $K+4$ of them, and a natural cubic spline — which also
+          demands straight lines outside the outer knots — costs
+          $K+1$. The truncated power basis of equation (7.10) turns
+          all of this into a linear model, so it is fitted by the same least squares as
+          everything before it. And because the knots are arbitrary, the number of them is
+          a tuning parameter, chosen the way chapter 5 chose everything else: by
+          cross-validation, on a curve that turns out to be very flat.</p>
+      </div>
+    </section>
+
+    <section id="piecewise">
+      <h2>1. A polynomial that is allowed to break</h2>
+
+      <p>Start with the unconstrained idea. Pick a knot — age 50, say — and fit one cubic
+        below it and an unrelated cubic above it. The book's words for the result are
+        worth quoting exactly: the function "is discontinuous and looks
+        ridiculous!". Two polynomials of degree three means eight
+        coefficients, and the book counts those as eight degrees of freedom. There is
+        nothing gluing the two halves together, so at the knot the fitted curve simply
+        steps sideways.</p>
+
+      <p>Now impose continuity: require the two cubics to take the same value at age 50.
+        That is one linear constraint on eight coefficients, so the model drops to seven.
+        The book's comment on the result is that "the V-shaped join looks
+        unnatural" — the curve no longer jumps, but its slope
+        does. Impose two more constraints, that the first <em>and</em> second derivatives
+        agree at the knot, and you have the cubic spline of the next section: three
+        constraints gone, five coefficients left.</p>
+
+      <p>Each constraint is a promise about the fitted function, and promises have prices.
+        The demo prints all four prices at once, as residual sums of squares.</p>
+
+      <figure class="demo" id="demo-ps">
+        <div class="demo-body grid2">
+          <canvas id="ps-unc"></canvas>
+          <canvas id="ps-con"></canvas>
+          <canvas id="ps-cub"></canvas>
+          <canvas id="ps-lin"></canvas>
+        </div>
+        <div class="demo-controls">
+          <span class="ctrl">
+            <label for="ps-knot">knot</label>
+            <input type="range" id="ps-knot" min="40" max="60" step="0.5" value="50">
+          </span>
+          <span class="ro" id="ps-knotread">…</span>
+          <span class="ro" id="ps-df">…</span>
+          <span class="ro" id="ps-rss">…</span>
+          <span class="ro" id="ps-jump">…</span>
+        </div>
+        <figcaption><strong>Play with it:</strong> the book's Figure 7.3, all four panels
+          at once, fitted in your browser on <em>all 3,000 rows</em> of the Wage data.
+          The book fits "a subset" it never identifies, so these curves are ours, and on a
+          common vertical scale rather than one per panel — that is deliberate, because
+          the comparison is the point. <em>Top left</em> — the unconstrained piecewise
+          cubic, 8 coefficients, stepping sideways at the knot. <em>Top right</em> —
+          forced continuous, 7. <em>Bottom left</em> — continuous with continuous first
+          and second derivatives, 5: the cubic spline. <em>Bottom right</em> — the linear
+          spline, 3. The counts in those panel titles are the book's own arithmetic: it
+          calls the unconstrained fit "a total of eight degrees of
+          freedom" and the cubic spline five, after three constraints; the
+          continuous piecewise cubic is 8&nbsp;&minus;&nbsp;1, and the linear spline is
+          three parameters because it has a slope and one hinge to its name. The dashed
+          vertical is the knot and moves when you drag the slider.
+          No random number is drawn anywhere in this demo and nothing is simulated: every
+          number in the readouts is an exact least squares fit on the book's own data.
+          The <em>jump</em> readout is the size of the sideways step the unconstrained
+          fit takes at the knot, evaluated numerically a hundred-millionth of a year on
+          either side of it.</figcaption>
+      </figure>
+
+      <p>At the default knot of 50 the four residual sums of squares are
+        4,759,774 for the unconstrained fit, 4,760,938 for the continuous one,
+        4,768,952 for the cubic spline and 4,884,863 for the linear spline. Read the
+        gaps rather than the numbers. Forcing continuity — the one constraint that
+        removes the ridiculous jump — costs <strong>1,164</strong> out of 4.76 million.
+        Adding the two derivative constraints costs <strong>8,014</strong> more. Requiring
+        the curve to be made of straight segments instead of cubics costs
+        <strong>115,911</strong>: a hundred times the continuity constraint, and thirteen
+        times everything the gluing bought. Smoothness is nearly free; being cubic is
+        what you pay for.</p>
+
+      <p>Drag the knot and the same ranking holds at every setting the slider offers
+        between 40 and 60, though the individual numbers move: the unconstrained RSS
+        runs between 4,757,865 with the knot at 52.5 and 4,766,882 with it at 40.5 —
+        nine thousand out of 4.76 million, which is what "the data has no opinion about
+        where you put the knot" looks like in numbers. The size of the jump changes sign
+        on the way, running from &minus;5.24 at 40 through zero to +3.47 at 60. That sign
+        flip is a small reminder that the jump is a property of the fit, not of the data:
+        nothing in the salary record says a man's wage should step down or step up on his
+        fiftieth birthday, and the unconstrained model is happy to say either.</p>
+
+      <div class="callout">
+        <p class="callout-title">Why not fit every piece separately?</p>
+        <p>You could, and it would be worse. Fitting two independent cubics on either side
+          of 50 is exactly what the top-left panel does, and it wastes data: the fit below
+          the knot never gets to use anything above it. The constraints are not decoration.
+          They are how the information on both sides of a knot gets pooled into one
+          estimate at that knot — and, as the readouts show, they cost almost
+          nothing.</p>
+      </div>
+    </section>
+
+    <section id="glued">
+      <h2>2. Gluing the pieces: cubic and natural cubic</h2>
+
+      <p>Rewriting the continuity constraints out of the model rather than into it gives
+        the form the book actually fits. A cubic spline with <em>K</em> knots at
+        $\xi_1, \ldots, \xi_K$ is written with the
+        <strong>truncated power basis</strong>:</p>
+
+      $$
+      \begin{aligned}
+      f(x) \;&=\; \beta_0 + \beta_1 x + \beta_2 x^2 + \beta_3 x^3 \\
+      &\quad+ \beta_4 h(x,\xi_1) + \beta_5 h(x,\xi_2) + \cdots +
+      \beta_{3+K} h(x,\xi_K)
+      \end{aligned}
+      \qquad(7.8)$$
+
+      $$h(x,\xi) \;=\; (x-\xi)_+^3 \;=\;
+      \begin{cases}
+      (x-\xi)^3 & x > \xi \\
+      0 & \text{otherwise}
+      \end{cases}
+      \qquad(7.10)$$
+
+      <p>The book's remark about (7.10) is the whole trick: adding
+        $\beta_4 h(x,\xi)$ to a cubic
+        "will lead to a discontinuity in only the third derivative at
+        $\xi$; the function will remain continuous, with
+        continuous first and second derivatives, at each of the knots". The
+        constraints are baked into the shape of the columns, so the fit is an ordinary
+        least squares problem with $3+K$ predictors and
+        $K+4$ coefficients — the book's degrees of freedom count.</p>
+
+      <p>That leaves a problem the book raises before it solves it: "splines
+        can have high variance at the outer range of the
+        predictors". Past the last knot a cubic spline is just a cubic,
+        free to swing wherever its three leading coefficients want, and with no data
+        beyond to pull it back. The fix is the <strong>natural cubic spline</strong>: two
+        extra constraints, one forcing the fit to be linear below the smallest knot and
+        one above the largest. Three constraints in total, so $K+1$
+        degrees of freedom instead of $K+4$, and the price is
+        that the curve outside the data's reach is a straight line rather than a
+        curve.</p>
+
+      <figure class="demo" id="demo-cubnat">
+        <div class="demo-body grid2">
+          <canvas id="sn-plot"></canvas>
+          <canvas id="sn-band"></canvas>
+        </div>
+        <div class="demo-controls">
+          <span class="ctrl">
+            <label for="sn-k">interior knots</label>
+            <input type="range" id="sn-k" min="1" max="6" step="1" value="3">
+          </span>
+          <span class="ro" id="sn-kread">…</span>
+          <span class="ro" id="sn-dfcub">…</span>
+          <span class="ro" id="sn-dfnat">…</span>
+          <span class="ro" id="sn-rss">…</span>
+          <span class="ro" id="sn-ciband">…</span>
+        </div>
+        <figcaption><strong>Play with it:</strong> the book's Figure 7.4 — a cubic spline
+          and a natural cubic spline through the same knots, fitted in your browser to all
+          3,000 rows. (The book fits an unspecified subset; ours is the whole table.) The
+          knots are the quantiles of age, the lab's rule, and at the default of three they
+          are 33.75, 42 and 51 — the same three numbers the book's lab prints for
+          <code>bs(age, df=6)</code>. <em>Left</em> — the two fitted curves, blue cubic and
+          red natural, with the knots dashed. <em>Right</em> — the pointwise 2× standard
+          error band of each, which is where the two families really separate. The natural
+          spline's band is drawn as two lines; the cubic spline's is the shaded wash, and
+          it leaves the frame past the last knot. That panel therefore has its own vertical
+          scale, computed from the fitted curves alone, and the cubic's true band width at
+          age 80 is printed in the readout instead of being drawn — drawing it would turn
+          everything else on the panel into a flat line. Nothing here is simulated and no
+          random number is used.</figcaption>
+      </figure>
+
+      <p>At the default three knots the cubic spline leaves an RSS of 4,766,244 and the
+        natural cubic spline 4,773,109 — the natural fit is a little worse, as it
+        must be, since it lives in a smaller space (5 coefficients against 7). The
+        interesting number is the other one. At age 80 the cubic spline's 2× standard
+        error band is <strong>29.5</strong> thousand dollars wide and the natural spline's
+        is <strong>16.8</strong>. Push the knot count down to one and the gap widens in
+        relative terms: 24.3 against 10.4, with the natural spline's band less than half
+        the cubic's. That is the argument for the natural constraints, in the units the
+        book uses to make it.</p>
+
+      <p>One counting note, because this section uses two conventions for the same
+        quantity and it is worth seeing them side by side. In section 7.4.1 the book
+        counts a cubic spline's degrees of freedom as its number of coefficients,
+        $K+4$, which is why Figure 7.3's panels are labelled 8, 7, 5
+        and 3. In section 7.4.4 it asks for "four degrees of
+        freedom" to get three interior knots, which is R's convention for
+        <code>ns()</code>: the number of basis columns <em>after</em> the intercept,
+        $K+1$, or five coefficients in total. Both are
+        defensible and neither is wrong; the readouts above print knots and coefficients,
+        which nobody can misread. At three interior knots the cubic spline has seven
+        coefficients and the natural cubic spline five.</p>
+
+      <p>Two checks you can make for free against the previous page. Drag the knot slider
+        to 1, and the cubic spline here is the same model as page 7.2's truncated-power
+        family at df 4 — one interior knot — and both report an RSS of 4,773,100. Drag it
+        to 3, and the natural spline here is page 7.2's natural-spline family at df 4:
+        33.75, 42 and 51 again, and an RSS of 4,773,109 in both places. Nothing has been
+        refitted differently. The knots are placed by the same rule, the spaces are
+        identical, and least squares has no opinion about which page you read it on.</p>
+
+      <div class="callout ok">
+        <p class="callout-title">One space, two sets of coordinates</p>
+        <p>Page 7.2 fitted every family twice — once in the plain columns of equation
+          (7.8), once in orthonormal columns — and showed the two fitted curves agreeing
+          to machine precision. The same thing is happening behind every panel on this
+          page. These demos orthonormalise their basis columns before fitting, because
+          $x^3$ at $x=80$ is 512,000: a one-knot cubic spline written in raw powers has a
+          design matrix with a condition number of about 8 million, and the degree-15
+          polynomial of section 4 written that way would have one near
+          $10^{34}$, which is arithmetic with no significant digits
+          left in it. The columns you would see are rotated versions of the book's, so
+          their coefficients are not the book's coefficients; the fitted curves,
+          residuals and standard errors are.</p>
+      </div>
+    </section>
+
+    <section id="choosing">
+      <h2>3. How many knots, and where</h2>
+
+      <p>Every constraint so far was free to choose, and the book is explicit that the
+        knots are too. Its own recommendation is unexciting and correct: "in
+        practice it is common to place knots in a uniform
+        fashion. One way to do this is to specify the desired degrees of freedom,
+        and then have the software automatically place the corresponding number of knots
+        at uniform quantiles of the data." That is what
+        <code>ns(age, df=4)</code> does, and it is why the book's Figure 7.5 — four
+        degrees of freedom — puts its three knots at exactly the 25th, 50th and 75th
+        percentiles of age. The phrase "four degrees of freedom leads to three interior
+        knots" is the natural spline's count, $K+1$, in one line.</p>
+
+      <p>That leaves the number itself. The book's answer is cross-validation, and its
+        reading of its own figure is that "three degrees of freedom for the
+        natural spline and four degrees of freedom for the cubic spline are quite
+        adequate". The demo recomputes that figure from
+        scratch, ten folds at a time.</p>
+
+      <figure class="demo" id="demo-splcv">
+        <div class="demo-body grid2">
+          <canvas id="sv-ns"></canvas>
+          <canvas id="sv-cs"></canvas>
+        </div>
+        <div class="demo-controls">
+          <span class="ctrl">
+            <label for="sv-df">degrees of freedom</label>
+            <input type="range" id="sv-df" min="1" max="10" step="1" value="3">
+          </span>
+          <button class="btn" id="sv-new" type="button">reshuffle the folds</button>
+          <span class="ro" id="sv-dfread">…</span>
+          <span class="ro" id="sv-cvn">…</span>
+          <span class="ro" id="sv-cvc">…</span>
+          <span class="ro" id="sv-bestn">…</span>
+          <span class="ro" id="sv-bestc">…</span>
+          <span class="ro" id="sv-shuffle">…</span>
+        </div>
+        <figcaption><strong>Play with it:</strong> the book's Figure 7.6, computed in your
+          browser: ten-fold cross-validated mean squared error against degrees of freedom,
+          natural cubic spline on the left over df 1 to 10, ordinary cubic spline on the
+          right over df 3 to 10 — a cubic already has three coefficients before any knot
+          is added, so df 1 and 2 mean nothing for that family. Both panels deliberately
+          share one vertical scale, the same one page 7.1 used for polynomials, so the two
+          pages can be read against each other. The fold assignment is a fixed shuffle
+          with seed 7, and the button redraws it; that is the only random number on this
+          page. Each point is the mean of the ten per-fold mean squared errors and the
+          readouts print its standard error across those ten folds. The book's figure puts
+          its minima at 3 and 4; ours do not, and the rest of this section is about why
+          that is not a disagreement.</figcaption>
+      </figure>
+
+      <p>Our minima come out at 8 degrees of freedom for the natural spline (1,591.5) and
+        10 for the cubic (also 1,591.5) — not 3 and 4. Now look at what those values
+        are measured against. From df 3 up to df 10 the natural spline's curve never leaves
+        the band between 1,591.5 and 1,593.8, a range of 2.3 on a scale of 1,592. The
+        cubic's range from df 3 to 10 is 3.0. Meanwhile the standard error printed beside
+        every single point is about <strong>67</strong>. Every point above df 2 is the
+        same point drawn ten times, and which of them happens to land lowest is decided by
+        the fold shuffle — press the button and watch the argmin walk around while the
+        curve underneath it does not move at all. That is why the book says three and four
+        are "quite adequate": not because they are optimal, but because
+        nothing above them is measurably better.</p>
+
+      <p>Two details on the same figure are worth checking rather than trusting. The
+        leftmost point of the natural-spline panel is df 1, which is a plain linear
+        regression, and it comes out at 1,675.5 — the same number page 7.1 printed for
+        its degree-1 polynomial, because a line is a line. That drop from 1,675.5 to
+        1,593.5 is the book's "clear evidence that a one-degree fit is not
+        adequate", and at 82 units it is thirty-six times the entire
+        variation of the curve above df 3. The other detail is the shape of the drop: by
+        df 2 the natural spline is already at 1,600.7, and everything after that is
+        refinement measured in single units. The flexibility a spline needs is bought with
+        knots at the quantiles, and three of them buy almost all of it.</p>
+    </section>
+
+    <section id="tails">
+      <h2>4. Splines against polynomials at the edges</h2>
+
+      <p>Section 7.4.5 asks the question the whole chapter has been circling: if a
+        polynomial and a spline are both basis models fitted by least squares, why prefer
+        the spline? The book's answer is mechanical — a polynomial "must use
+        a high degree … to produce flexible fits", while splines
+        "introduce flexibility by increasing the number of knots but
+        keeping the degree fixed", and that "generally, this
+        approach produces more stable estimates". Figure 7.7 is the demonstration, and it
+        is the most violent figure in the chapter.</p>
+
+      <figure class="demo" id="demo-tails">
+        <div class="demo-body grid2">
+          <canvas id="st-plot"></canvas>
+          <canvas id="st-zoom"></canvas>
+        </div>
+        <div class="demo-controls">
+          <span class="ctrl">
+            <label for="st-deg">polynomial degree</label>
+            <input type="range" id="st-deg" min="1" max="15" step="1" value="15">
+          </span>
+          <span class="ctrl">
+            <label for="st-df">natural spline df</label>
+            <input type="range" id="st-df" min="1" max="15" step="1" value="15">
+          </span>
+          <span class="ro" id="st-degread">…</span>
+          <span class="ro" id="st-dfread">…</span>
+          <span class="ro" id="st-poly">…</span>
+          <span class="ro" id="st-nat">…</span>
+          <span class="ro" id="st-gap">…</span>
+        </div>
+        <figcaption><strong>Play with it:</strong> the book's Figure 7.7 — a degree-15
+          polynomial and a natural cubic spline with 15 degrees of freedom, both fitted in
+          your browser to all 3,000 rows, nothing simulated and no random number involved.
+          <em>Left</em> — the whole age range, both curves over the scatter, with a dashed
+          vertical where the right panel starts. <em>Right</em> — the last ten years of
+          age, magnified: this panel's vertical range is computed from the two curves
+          actually inside it, so it changes as you drag the sliders and never shows an
+          empty frame. At the default settings the polynomial climbs to 142.3 thousand
+          dollars at age 79 and then falls to 86.1 at age 80 — a drop of 56.2 in one
+          year, past the end of the data. The natural spline just keeps going down,
+          ending at 78.5. Drag either slider down and the two curves come closer: at
+          degree 4 against df 4 the largest gap between them over the whole age range
+          falls from 61.0 to 14.3, still at the far edge. The book's warning is about the
+          tails, and the tails are where the difference lives at every setting.</figcaption>
+      </figure>
+
+      <p>At the default settings the two curves disagree by up to <strong>61.0</strong>
+        thousand dollars, and the disagreement is at age 79 — one year before the end
+        of the data. Run the list of polynomial values from age 70 to 80 and the shape of
+        the trouble is plain: 99.5, 98.7, 97.5, 95.4, 93.2, 92.6, 97.4, 110.9, 131.8,
+        142.3, 86.1. It drifts down to 92.6 at age 75, climbs 49.7 over the next four
+        years to 142.3, and then drops 56.2 in the last one. Over the same eleven ages
+        the natural spline goes 105.0 down to 78.5, monotone, following the data. Nothing
+        in the salary record is doing that; it is $x^{15}$ doing
+        what $x^{15}$ always does at the ends of its range, and the
+        79-year-olds in this data set are simply the people unlucky enough to be at one of
+        those ends.</p>
+
+      <p>The book's own summary is that "the extra flexibility in the
+        polynomial produces undesirable results at the boundaries, while the natural
+        cubic spline still provides a reasonable fit to the data", and the
+        deeper reason it gives is the one to keep: splines buy flexibility by adding
+        <em>knots</em> in the region where you want the curve to move, keeping the degree
+        fixed at three, so the model's behavior far from the data is a straight line
+        instead of a fifteenth-power tantrum. It also notes the flexibility this buys you
+        in design — more knots where $f$ changes fast, fewer where it is
+        stable — before admitting that in practice everyone puts them at the quantiles
+        anyway, which is what this page's demos do.</p>
+
+      <div class="callout ok">
+        <p class="callout-title">Section 7.4 in one line</p>
+        <p>A regression spline is a piecewise polynomial with the joints sanded smooth:
+          constraints buy continuity almost for free, the natural constraints buy stable
+          uncertainty at the edges for a little more, and the number of knots is a tuning
+          parameter chosen by cross-validation on a curve so flat that almost anything
+          above two degrees of freedom will do. When a spline and a polynomial have to
+          guess past the end of the data, bet on the spline.</p>
+      </div>
+    </section>
+
+    <footer style="margin-top:64px;font-size:13.5px;color:var(--muted);">
+      <p class="further">Source: ISLP, Section 7.4 (pp. 295–300), Figures 7.3, 7.4, 7.6
+        and 7.7. Every curve, band, residual sum of squares, cross-validated mean squared
+        error and standard error on this page is fitted in your browser from the book's
+        own Wage data set — 3,000 observations, ages 18 to 80, 79 of them above
+        <span class="usd">$</span>250,000 — as shipped with the book's Python package.
+        Nothing is simulated; the only random number drawn anywhere on this page is the
+        ten-fold shuffle in the third demo, whose seed is 7 and whose button redraws it.
+        Three conventions are ours and are stated where they are used: Figures 7.3, 7.4
+        and 7.7 are fitted on all 3,000 rows although the book says it plots "a subset" it
+        does not identify, so our curves are our own and not reproductions; the knots are
+        placed at the quantiles of age, the lab's rule, rather than by any other scheme;
+        and the basis columns are orthonormalised before fitting because the raw power
+          basis is badly conditioned, so the coefficients are rotated versions of the
+        book's while the fitted curves, residuals and standard errors are not.</p>
+      <p>ISLP Plainly — <span data-year>2026</span></p>
+    </footer>
+  </main>
+
+  <!-- ======================= page TOC ======================= -->
+  <details class="page-toc" id="page-toc" open>
+    <summary>On this page</summary>
+    <p class="toc-title">On this page</p>
+    <nav aria-label="Table of contents">
+      <ol></ol>
+    </nav>
+  </details>
+</div>
+
+<div class="scrim" id="scrim"></div>
+
+</body>
+</html>

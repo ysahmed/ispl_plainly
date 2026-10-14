@@ -427,6 +427,56 @@ Chapter 5 (harnesses `/tmp/opencode/ch5_check.py` for structure and
   reader sees, and the reference implementations share no code with the
   browser.
 
+- **Chapter 7, sections 7.1–7.4 (harnesses `/tmp/opencode/ch7_page_probe.py`
+  and `/tmp/opencode/ch7_readouts.py` — they race on the same scratch
+  directory, so run one at a time — with the independent Python references
+  `/tmp/opencode/ch7_ref.py`, `ch7_73_ref.py`, `ch7_73_fast.py`,
+  `ch7_73_cv.py` and `ch7_73_claim.py`).** Three pages, eleven demos, all
+  fitted in the browser on all 3,000 rows of the book's Wage data. §7.1 is
+  polynomial regression: the fitted curve with its pointwise 2× band at any
+  degree 1–15, the logistic fit for the 79 men above
+  <span class="usd">$</span>250,000 with a Wald band, and the ten-fold CV
+  curve whose argmin wanders across the LCG reshuffles while the curve under
+  it moves by less than the SE printed beside it. §7.2–7.3 are step
+  functions and basis functions: quantile and equal-width bins with the
+  bin means and the 2× band staircase, the same bins in a logit fit, and
+  one demo that fits four basis families twice each — once in the book's
+  plain columns, once in orthonormal ones — printing the largest gap between
+  the two fitted curves, which is zero to machine precision. §7.4 is
+  regression splines, four demos: the four panels of Figure 7.3 (8/7/5/3
+  coefficients, RSS and the size of the unconstrained jump, all printed);
+  Figure 7.4's cubic against natural cubic with their 2× bands and the band
+  width at age 80; Figure 7.6's ten-fold CV curves for both families with
+  the per-fold standard error and a reshuffle button; and Figure 7.7's
+  degree-15 polynomial against a df-15 natural spline, magnified onto the
+  last ten years of age.
+- **What the Chapter 7 numbers rest on.** Every readout was recomputed
+  independently in Python from ISLP's own `bs`/`ns`/`poly` transforms and
+  numpy least squares: §7.3's largest fitted-value gap between two
+  parametrisations of one space; §7.4.2's bin means, the Wald deviance of
+  every (K, mode) setting and the largest fitted probability (5.07%); the
+  four RSS values of Figure 7.3 and the jump at the knot (−4.02 at age 50,
+  flipping sign as the knot moves); Figure 7.4's two RSS values and both
+  2× band widths at age 80 (29.5 against 16.8); Figure 7.6's ten-point CV
+  curves and standard errors for both families at seed 7; and Figure 7.7's
+  eleven polynomial values between ages 70 and 80, the natural spline's,
+  and the largest gap (61.0 at age 79). Two prose claims were checked
+  rather than assumed: a raw one-knot cubic design has a condition number of
+  8.4 million (the degree-15 one, 8 × 10³³), and a degree-4 polynomial
+  against a df-4 natural spline still disagrees by 14.3 at the far edge,
+  not by nothing.
+- **Honest framing, stated on the page where it matters.** Figures 7.3,
+  7.4 and 7.7 are fitted on all 3,000 rows although the book says it plots
+  an unidentified "subset", so they are our fits and say so. Our CV minima
+  (df 8 natural, df 10 cubic) are not the book's (3 and 4), and the demo
+  prints the per-fold standard error — about 67 against a total variation
+  of 3 across the flat part — so the reader can see that the disagreement
+  is noise rather than a replication failure. The knots are the age
+  quantiles (the lab's rule), and at three knots they are 33.75, 42 and 51,
+  the same numbers the lab prints. Basis columns are orthonormalised before
+  fitting, so the coefficients are not the book's; the curves, residuals
+  and standard errors are, and section 7.3's demo proves that numerically.
+
 ## Next
 
 Ask for a chapter by name. Chapters 1–6 are built; **Chapter 7 (Moving
