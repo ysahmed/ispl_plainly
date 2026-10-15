@@ -1,0 +1,445 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>7.6 · Local regression — ISLP Plainly</title>
+<meta name="description" content="ISLP section 7.6 in plain language: Algorithm 7.1 step by step, why every new target point means a brand-new weighted regression, what the tricube bell around the target is doing, whose degrees of freedom the Figure 7.10 legend counts (R's own loess answers 16.41607 and 5.29968 — measured), and three live demos: Figure 7.9's simulated fit made movable, local linear fits on all 3,000 rows of the Wage data with both df conventions printed, and ten-fold cross-validation of the span with a reshuffle button.">
+<link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css">
+<link rel="stylesheet" href="assets/css/style.css">
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/contrib/auto-render.min.js"></script>
+<script defer src="assets/js/plots.js"></script>
+<script defer src="assets/js/nav.js"></script>
+<script defer src="assets/data/ch07-data.js"></script>
+<script defer src="assets/data/ch07-fig79.js"></script>
+<script defer src="assets/js/stats.js"></script>
+<script defer src="assets/js/demos/lr-sim.js"></script>
+<script defer src="assets/js/demos/lr-wage.js"></script>
+<script defer src="assets/js/demos/lr-cv.js"></script>
+<script defer src="assets/js/common.js"></script>
+</head>
+<body>
+
+<a class="skip-link" href="#main">Skip to content</a>
+
+<header class="topbar">
+  <button class="icon-btn" data-sidebar-toggle aria-label="Open navigation menu" aria-controls="sidebar">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 6h16M4 12h16M4 18h16"/></svg>
+  </button>
+  <span class="topbar-title">7.6 · Local regression</span>
+</header>
+
+<div class="app">
+
+  <!-- ======================= sidebar ======================= -->
+  <aside class="sidebar" id="sidebar">
+    <div class="brand">
+      <span class="logo">∑</span>
+      <a href="index.html">ISLP Plainly</a>
+    </div>
+
+    <nav class="side-nav" aria-label="Site navigation"></nav>
+
+    <div class="side-foot">
+      <button class="theme-btn" data-theme-toggle type="button">
+        <svg class="sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2m0 16v2M4.9 4.9l1.4 1.4m11.4-11.4 1.4 1.4M2 12h2m16 0h2M19.1 4.9l-1.4 1.4M4.9 19.1l-1.4 1.4"/></svg>
+        <svg class="moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg>
+        <span class="theme-label">Dark mode</span>
+      </button>
+    </div>
+  </aside>
+
+  <!-- ======================= main ======================= -->
+  <main id="main">
+
+    <div class="page-head">
+      <p class="eyebrow">Chapter 7 · section 7.6 · book pages 303–305</p>
+      <h1>Local regression</h1>
+      <p class="lede">Every method so far committed to one function — a polynomial, a set of bins,
+        a spline, a smoothing curve — and then evaluated it anywhere you liked. This section
+        gives that up. To estimate the fit at a target point, gather the observations around
+        that point, fit them a small weighted regression, and read off the value at the target.
+        The weights change with every target, so the model is rebuilt on the spot each time —
+        the book calls it a memory-based procedure, and the only knob that really matters is
+        how much of the data counts as "nearby".</p>
+    </div>
+
+    <section id="reading">
+      <h2>Reading</h2>
+      <ul class="reading">
+        <li><span class="r-label">Read</span>
+          <span class="r-body">Section 7.6 in full (pp. 303–305). One figure of simulated data
+            (Figure 7.9) to fix the picture, Algorithm 7.1 in four steps with one numbered
+            equation (7.14), a short paragraph on the three choices the method leaves open,
+            Figure 7.10 with two fits to the Wage data, and a closing paragraph on generalising
+            to several variables — where local regression starts to fail.</span></li>
+        <li><span class="r-label">Skim</span>
+          <span class="r-body">Algorithm 7.1 itself, until each of its four steps is a sentence
+            you could say aloud, and the paragraph after it explaining why a new target point
+            means a brand-new weighted least squares fit rather than a lookup in an old one.</span></li>
+        <li><span class="r-label">Then</span>
+          <span class="r-body">Section 7.7, which stops choosing between these one-predictor
+            methods and adds several of them together into one model.</span></li>
+      </ul>
+
+      <div class="keybox">
+        <p class="keybox-title">Key ideas</p>
+        <p>To estimate at $x_0$: take the closest $s \cdot n$ training points (Algorithm 7.1,
+          step 1), weight them so the weight falls smoothly to zero at the edge of that
+          neighbourhood (step 2 — the yellow bell in Figure 7.9), minimise the weighted squared
+          error of a constant, linear or quadratic (step 3; equation (7.14) is the linear one),
+          and report the fitted value at $x_0$ (step 4: $\hat f(x_0) = \hat\beta_0 +
+          \hat\beta_1 x_0$). Because the weights are tied to $x_0$, they are different for
+          every target: predicting one new point costs one new weighted regression over
+          <em>all</em> the training data you kept — that is what <strong>memory-based</strong>
+          means. The <strong>span $s$</strong> is this section's tuning parameter, playing the
+          role $\lambda$ played in section 7.5: small $s$ follows every wiggle, large $s$
+          drifts back toward a global fit, and cross-validation can pick it. Two counts of how
+          flexible the answer was are printed on this page — $\mathrm{tr}(S)$ along the
+          smoother's diagonal and $\mathrm{tr}(S^\top S)$ of its squared row lengths — and the
+          book's Figure 7.10 legend quotes a third, which this page tracks down to R's own
+          output (16.41607 and 5.29968 for the two spans).</p>
+      </div>
+    </section>
+
+    <section id="algorithm">
+      <h2>1. A regression per point</h2>
+
+      <p>The section opens by naming its difference from everything before it: local regression
+        "involves computing the fit at a target point $x_0$ using only the nearby training
+        observations." Sections 7.1 through 7.5 each built a single curve — degree-4 polynomial,
+        four bins, three knots, one $\lambda$ — and could then be evaluated anywhere for free.
+        This section never builds that curve. Ask for the fit at age 47 and it assembles a
+        regression out of the men near 47, fits it, reads off its value at 47, and lets the
+        regression go; ask at 48, and the neighbourhood — and therefore the weights, and
+        therefore the model — is a different one.</p>
+
+      <p>Figure 7.9 is the picture version, and the book walks through its parts: the blue curve
+        is the true $f(x)$ the data came from, "the light orange line corresponds to the local
+        regression estimate $\hat f(x)$", the orange points are the ones "local to the target
+        point", the orange vertical line marks $x_0$, and "the yellow bell-shape superimposed
+        on the plot indicates weights assigned to each point, decreasing to zero with distance
+        from the target point". The book describes its two targets as "one target point near
+        0.4, and another near the boundary at 0.05"; measured against the printed page's axis
+        ticks, the two vertical lines sit at $x_0 = 0.4562$ and $x_0 = 0.0649$ — exactly where
+        the demo below starts.</p>
+
+      <div class="callout">
+        <p class="callout-title">Algorithm 7.1 — Local regression at $X = x_0$</p>
+        <ol>
+          <li>Gather the fraction $s = k/n$ of training points whose $x_i$ are closest to
+            $x_0$.</li>
+          <li>Assign each a weight $K_{i0} = K(x_i, x_0)$ "so that the point furthest from
+            $x_0$ has weight zero, and the closest has the highest weight. All but these
+            $k$ nearest neighbors get weight zero."</li>
+          <li>Fit a weighted least squares of the $y_i$ on the $x_i$ with those weights,
+            minimising equation (7.14) below.</li>
+          <li>The fitted value at $x_0$: $\hat f(x_0) = \hat\beta_0 + \hat\beta_1 x_0$.</li>
+        </ol>
+      </div>
+
+      $$\min_{\beta_0,\,\beta_1}\;\; \sum_{i=1}^{n} K_{i0}\,\bigl(y_i - \beta_0 - \beta_1 x_i\bigr)^2 \qquad(7.14)$$
+
+      <p>Nothing here is new machinery: step 3 is ordinary least squares with different weights
+        on the rows — the same normal equations as chapter 3, evaluated on $k$ rows instead of
+        $n$. What is new is the book's observation right after the algorithm: the
+        $K_{i0}$ differ "for each value of $x_0$", so "in order to obtain the local regression
+        fit at a new point, we need to fit a new weighted least squares regression model by
+        minimizing (7.14) for a new set of weights". That is why the method keeps the whole
+        training set around — "local regression is sometimes referred to as a
+        <strong>memory-based procedure</strong>, because like nearest-neighbors, we need all
+        the training data each time we wish to compute a prediction." Compare that with the
+        smoothing spline of the last section, which compressed all 3,000 rows into one matrix
+        and one $\lambda$ and never looked back.</p>
+
+      <p>Three choices are open, says the book: "how to define the weighting function $K$", and
+        "whether to fit a linear, constant, or quadratic regression in Step 3", with the span
+        $s$ coming later as "the most important" one. This page fixes $K$ as the
+        <strong>tricube</strong> — the bell every implementation of local regression draws,
+        and the one printed in Figure 7.9:</p>
+
+      $$K(d) = \begin{cases} (1 - d^3)^3 & d < 1 \\[2pt] 0 & d \ge 1 \end{cases}$$
+
+      <p>where $d$ is distance from the target in units of the bandwidth $h$. That claim — that
+        the printed yellow bell <em>is</em> this function — is measured, not assumed: fit the
+        tricube profile to the bell in each of the two printed panels and you get half-widths
+        <strong>0.1985</strong> and <strong>0.2010</strong> with peaks <strong>0.996</strong>
+        and <strong>0.970</strong>, an rmse of 0.009 and 0.029 against the printed pixels.
+        A peak at 1.0 and a smooth fall to zero at the edge, both panels — the tricube. The
+        default degree here is 1, because equation (7.14) — the one the book numbers — is the
+        linear one.</p>
+
+      <figure class="demo" id="demo-lr-sim">
+        <div class="demo-body">
+          <canvas id="lr-si-plot"></canvas>
+        </div>
+        <div class="demo-controls">
+          <span class="ctrl">
+            <label for="lr-si-x0">target x<sub>0</sub></label>
+            <input type="range" id="lr-si-x0" min="0" max="1" step="0.0001" value="0.0649">
+          </span>
+          <button class="btn" id="lr-si-a" type="button">target A · 0.0649</button>
+          <button class="btn" id="lr-si-b" type="button">target B · 0.4562</button>
+          <span class="ctrl">
+            <label for="lr-si-span">span s</label>
+            <input type="range" id="lr-si-span" min="0.05" max="1" step="0.01" value="0.2">
+          </span>
+          <span class="ctrl">
+            <label for="lr-si-deg">degree</label>
+            <select id="lr-si-deg">
+              <option value="0">constant (degree 0)</option>
+              <option value="1" selected>linear (degree 1)</option>
+              <option value="2">quadratic (degree 2)</option>
+            </select>
+          </span>
+          <span class="ro" id="lr-si-x0read">…</span>
+          <span class="ro" id="lr-si-k">…</span>
+          <span class="ro" id="lr-si-h">…</span>
+          <span class="ro" id="lr-si-fh">…</span>
+          <span class="ro" id="lr-si-f">…</span>
+          <span class="ro" id="lr-si-err">…</span>
+        </div>
+        <figcaption><strong>Play with it:</strong> Figure 7.9's construction, recomputed live.
+          Move the target anywhere (the two buttons jump to the book's own two positions),
+          widen or shrink the span, switch the local polynomial among the constant, linear and
+          quadratic choices Algorithm 7.1 leaves open. The blue curve is the book's $f(x)$,
+          digitised from Figure 7.9 by <code>tools/ch07_fig79.py</code>: both printed panels
+          trace the same curve and agree to a mean absolute 0.0025 (worst 0.0096), giving
+          $f(0.005) = 0.0682$, peak 1.0025 at $x = 0.385$, $f(0.995) = -0.741$. The yellow bell
+          is the tricube at the current bandwidth. The points are <em>ours</em>: the book never
+          publishes its simulated data, so we draw 100 of our own — $x$ uniform on $(0,1)$,
+          $y = f(x) + $ Gaussian noise of sd <strong>0.35</strong> with the page's fixed seed
+          (mulberry32, seed 7) — where 0.35 comes from the printed circles we did digitise: 67
+          of them about the traced $f$ have residual sd 0.3816, all between −0.508 and +0.701.
+          The demo therefore reproduces the book's <em>method</em> and its noise level, not its
+          particular points; every readout is computed from the drawn data.</figcaption>
+      </figure>
+
+      <p>At the opening position — target A, $x_0 = 0.0649$, span 0.2, degree 1 — the
+        neighbourhood holds <strong>20 of the 100</strong> points with bandwidth
+        <strong>h = 0.1973</strong>, and the estimate reads
+        <strong>f̂(x₀) = 0.2362</strong> against the truth <strong>f(x₀) = 0.2560</strong>: an
+        error of <strong>−0.0198</strong>. Press target B ($x_0 = 0.4562$) and the bandwidth
+        roughly halves, to <strong>0.1014</strong> — at an interior target the 20 nearest
+        points come from both sides, at the boundary they can only come from the right — while
+        the error grows to <strong>+0.0889</strong>. Switch to the quadratic and the error at
+        target A grows to <strong>−0.1019</strong>: twice the parameters, the same 20 points,
+        more variance. Open the span to 0.7 instead ($k = 70$, $h = 0.6710$) and the error
+        shrinks to <strong>+0.0240</strong> — more points averaging the noise, at the price of a
+        line that follows the curve less closely. That is the trade the span dial makes, live.</p>
+    </section>
+
+    <section id="span">
+      <h2>2. The span, and whose degrees of freedom</h2>
+
+      <p>The book's verdict on the three choices is blunt: "While all of these choices make
+        some difference, the most important choice is the span $s$." Its analogy is exact and
+        worth keeping: "The span plays a role like that of the tuning parameter $\lambda$ in
+        smoothing splines: it controls the flexibility of the non-linear fit. The smaller the
+        value of $s$, the more local and wiggly will be our fit; alternatively, a very large
+        value of $s$ will lead to a global fit to the data using all of the training
+        observations." And then: "We can again use cross-validation to choose $s$, or we can
+        specify it directly."</p>
+
+      <p>Specifying it directly is what Figure 7.10 does — two fits, spans 0.7 and 0.2, with
+        the book's flat observation: "As expected, the fit obtained using $s = 0.7$ is smoother
+        than that obtained using $s = 0.2$." The demo below draws both of the book's spans as
+        grey reference curves behind whichever span you choose, plus something the printed
+        figure only hints at in its legend: the counts.</p>
+
+      <figure class="demo" id="demo-lr-wage">
+        <div class="demo-body grid2">
+          <canvas id="lr-wg-plot"></canvas>
+          <canvas id="lr-wg-dfplot"></canvas>
+        </div>
+        <div class="demo-controls">
+          <span class="ctrl">
+            <label for="lr-wg-span">span s</label>
+            <input type="range" id="lr-wg-span" min="0.05" max="1" step="0.01" value="0.2">
+          </span>
+          <button class="btn" id="lr-wg-b02" type="button">0.2 (book)</button>
+          <button class="btn" id="lr-wg-b05" type="button">0.5 (lab)</button>
+          <button class="btn" id="lr-wg-b07" type="button">0.7 (book)</button>
+          <span class="ctrl">
+            <label for="lr-wg-deg">degree</label>
+            <select id="lr-wg-deg">
+              <option value="0">constant (degree 0)</option>
+              <option value="1" selected>linear (degree 1)</option>
+              <option value="2">quadratic (degree 2)</option>
+            </select>
+          </span>
+          <span class="ro" id="lr-wg-k">…</span>
+          <span class="ro" id="lr-wg-nb">…</span>
+          <span class="ro" id="lr-wg-df">…</span>
+          <span class="ro" id="lr-wg-enp">…</span>
+          <span class="ro" id="lr-wg-rss">…</span>
+        </div>
+        <figcaption><strong>Play with it:</strong> local fits to the book's Wage data — all
+          3,000 rows fitted in your browser, nothing simulated. Left: the scatter with the two
+          spans Figure 7.10 prints drawn in grey (solid 0.2, dashed 0.7) and the current span
+          in orange. Right: the two degrees-of-freedom counts against span, computed at the
+          observed ages — $\mathrm{tr}(S)$ in blue, $\mathrm{tr}(S^\top S)$ in red — with the
+          book's legend counts drawn as hollow dots whenever degree 2 is selected. Checks
+          behind the numbers: our degree-1 fits equal statsmodels' <code>lowess</code>
+          (<code>it=0</code>) to 1.2 × 10<sup>−11</sup> and R's
+          <code>loess(degree=1, surface="direct")</code> to better than a thousandth of a
+          squared unit; R's degree-2 surface counts come out at tr(S) = 18.27817, exactly ours,
+          and R's default interpolated-surface <code>enp</code> prints 16.41607 and 5.29968 —
+          the book's legend, measured directly in R.</figcaption>
+      </figure>
+
+      <p>First, $k = s \cdot n$ is a count of <em>people</em>, and people's ages are integers —
+        so the neighbourhood is bigger than the recipe asks for. At span 0.2 the recipe wants
+        the closest 600 of 3,000 men to age 47; the 600th lands at $h = 3$ years, and every man
+        from 44 to 50 is tied at or inside that distance: the readout says
+        <strong>637 within h</strong>, not 600. Keeping the tied extras is this page's
+        convention (they arrive with tricube weight from positive down to exactly zero at
+        $d = h$, which is what step 2 prescribes for the outermost ring anyway); the book's
+        step 1 says "the fraction $s = k/n$ of training points whose $x_i$ are closest" and
+        does not say what to do when "closest" runs through a tie.</p>
+
+      <p>Second, "degrees of freedom" in the printed legend is a number with a third convention.
+        At the defaults — span 0.2, degree 1 — this page counts
+        <strong>df = tr(S) = 10.64</strong> and <strong>enp = tr(S′S) = 8.92</strong>, RSS
+        4,754,977. At span 0.7: <strong>3.69</strong> and <strong>3.23</strong>, RSS 4,789,317.
+        At 0.5, the span the lab's <code>lowess</code> uses: <strong>4.90</strong> and
+        <strong>4.22</strong>. All six counts shrink as the span grows — a wider window is a
+        blunter instrument — but none of them is 16.4. So where does the legend's pair,
+        "16.4 Degrees of Freedom" and "5.3 Degrees of Freedom", come from? Not from the
+        local-linear fits drawn beside them. R's <code>loess()</code> fits a local
+        <em>quadratic</em> by default, and asking it directly (this page runs R on every check,
+        when docker is available) gives <strong>enp = 16.41607</strong> at span 0.2 and
+        <strong>5.29968</strong> at span 0.7 — the book's 16.4 and 5.3, to every digit printed.
+        Our own quadratic counts at span 0.2 are tr(S) = <strong>18.28</strong> and tr(S′S) =
+        <strong>16.57</strong>: the first agrees with R's degree-2 surface evaluation to eight
+        digits, the second is close to 16.41607 but not equal, because R reports its
+        <code>enp</code> on the interpolated grid it predicts from while this page counts at
+        the 3,000 observed ages. Three defensible counts of slightly different smoothers, all
+        printed side by side above — the honest move, rather than quoting 16.4 as the degrees
+        of freedom of the line you are looking at.</p>
+
+      <p>One edge the slider exposes, because with tied integer data the tricube can bite:
+        drag the span to its minimum, 0.05, and at age 47 the bandwidth falls to
+        <strong>1 year</strong> — the 150-nearest to 47 all sit at 46, 47 or 48 (271 men). The
+        men at exactly 47 get weight 1, the men one year away get
+        $(1 - 1^3)^3 = 0$, and a weighted "line" through a single $x$-value has no slope left
+        to estimate: the fit collapses to that age's plain mean. The readouts report the
+        mixture honestly — df = <strong>39.87</strong>, between the 61 you would get if every
+        age collapsed to its mean and the small numbers a real line fit would give. A span that
+        small is not on CV's shortlist anyway, as the next demo shows.</p>
+    </section>
+
+    <section id="cv">
+      <h2>3. Cross-validation, and how flat it is</h2>
+
+      <p>"We can again use cross-validation to choose $s$." The word <em>again</em> is doing
+        work: this is the third time this chapter picks a tuning parameter by holding data out
+        — degree for polynomials in 7.1, the knot count in 7.4, $\lambda$ in 7.5 — and by now
+        you know what to expect from the curve it draws. The demo runs the book's own recipe
+        faithfully: ten folds, the same fixed fold assignment the first CV demo on this site
+        used (seed 7, so the numbers are reproducible from the page source), twenty spans from
+        0.05 to 1.00, one local-linear fit — equation (7.14), degree 1 — per held-out man per
+        span. That is 60,000 weighted regressions per sweep, done in your browser.</p>
+
+      <figure class="demo" id="demo-lr-cv">
+        <div class="demo-body">
+          <canvas id="lr-cv-plot"></canvas>
+        </div>
+        <div class="demo-controls">
+          <span class="ctrl">
+            <label for="lr-cv-span">span s</label>
+            <input type="range" id="lr-cv-span" min="0.05" max="1" step="0.05" value="0.2">
+          </span>
+          <button class="btn" id="lr-cv-new" type="button">reshuffle the folds</button>
+          <span class="ro" id="lr-cv-read">…</span>
+          <span class="ro" id="lr-cv-best">…</span>
+          <span class="ro" id="lr-cv-shuffle">…</span>
+        </div>
+        <figcaption><strong>Play with it:</strong> ten-fold CV of the span on the Wage data,
+          local-linear fits only. The red dashed line marks the span the slider is on, the red
+          dot the curve's minimum; the readout prints the mean squared error and its standard
+          error across the ten folds at the selected span. The reshuffle button regenerates the
+          fold assignment — the seed marches through the same linear congruential sequence the
+          section 7.1 page used — while the data stay fixed. Nothing here is simulated, and
+          the whole sweep is recomputed on every shuffle.</figcaption>
+      </figure>
+
+      <p>The answer, today: at span 0.20 the criterion reads
+        <strong>1592.1 ± 67.9</strong>, and the minimum of all twenty spans sits at
+        <strong>0.25, at 1591.5</strong> — six-tenths of a unit below, against a standard error
+        of nearly sixty-eight. Across the <em>entire</em> sweep, from span 0.05 to 1.00, the
+        curve moves by a total of <strong>46.0</strong> units: every span on the grid is within
+        less than one standard error of the best. Click reshuffle — the fold seed walks from 7
+        to 1282168119 — and the minimum moves to <strong>0.30, at 1594.1</strong>, while span
+        0.20 now reads 1595.0 ± 63.3. The argmin is not a fact; the plateau is. So the honest
+        reading of "we can use cross-validation to choose $s$" here is: it rules out the
+        extremes, prefers the 0.2–0.4 neighbourhood, and declines to be more precise than the
+        noise allows — which is exactly how flat the leave-one-out curve in the previous
+        section turned out to be, for the same reason: near its minimum, a criterion for
+        flexibility is almost always a long, shallow valley, and this chapter's method should
+        be chosen from the valley floor, not from the argmin pin. The lab that follows uses
+        spans 0.2 and 0.5 — both inside the valley — and we will get there on the next page.</p>
+
+      <p>The section closes by pointing outward: local regression generalises "in a setting
+        with multiple features" to <em>varying coefficient</em> models — "global in some
+        variables, but local in another, such as time" — and naturally to two-dimensional
+        neighbourhoods. It also states its own failure mode, which is the curse of dimensionality
+        you met with $k$-nearest neighbors in chapter 3: "local regression can perform poorly
+        if $p$ is much larger than about 3 or 4 because there will generally be very few
+        training observations close to $x_0$." Beyond a handful of dimensions, a neighbourhood
+        is empty, and no amount of weighting helps.</p>
+
+      <div class="callout ok">
+        <p class="callout-title">Section 7.6 in one line</p>
+        <p>Stop fitting one curve to everything: at each target $x_0$, take the $s \cdot n$
+          nearest points, weight them with a bell that reaches zero at the edge, fit a small
+          weighted polynomial, and read its value at $x_0$ — refitted for every target, which
+          is why the method is memory-based; the span is the dial (cross-validation can turn
+          it, though here it hands you a plateau), the counts of flexibility depend on whose
+          convention you ask — ours print 10.64 and 8.92 where the book's legend prints 16.4,
+          a number this page traces to R's default quadratic enp, 16.41607, measured directly.</p>
+      </div>
+    </section>
+
+    <footer style="margin-top:64px;font-size:13.5px;color:var(--muted);">
+      <p class="further">Source: ISLP, Section 7.6 (pp. 303–305), Algorithm 7.1, Equation
+        (7.14), and Figures 7.9 and 7.10. Fitted in your browser from the book's own Wage data
+        set — 3,000 observations, ages 18 to 80 — as shipped with the book's Python package,
+        except for the first demo's points, which are simulated because the book does not
+        publish its own. Conventions, all stated where they are used: the weighting function
+        $K$ is the tricube (the book leaves $K$ open; the printed bell in Figure 7.9 was
+        fitted against it and agrees to a peak of 0.996/0.970 at half-widths
+        0.1985/0.2010); the default local polynomial is degree 1, equation (7.14)'s own
+        choice; the neighbourhood keeps every point tied at the $k$-th distance, so on tied
+        integer ages it holds more than $s \cdot n$ points (637 at age 47, span 0.2); degrees
+        of freedom are counted both ways this site's splines pages counted them,
+        $\mathrm{tr}(S)$ and $\mathrm{tr}(S^\top S)$, evaluated at the 3,000 observed ages —
+        and the book's Figure 7.10 legend counts something else again, R's default
+        quadratic-fit <code>enp</code> on its interpolated surface, verified here as 16.41607
+        and 5.29968; the first demo's curve is the book's own $f$, digitised from Figure 7.9
+        by <code>tools/ch07_fig79.py</code> (both printed panels traced independently, agreeing
+        to a mean absolute 0.0025 and a worst 0.0096), and its 100 points are drawn with
+        mulberry32 seed 7 at a noise level of 0.35, chosen from the spread of the 67 printed
+        circles we digitised about the traced curve (residual sd 0.3816, range −0.508 to
+        +0.701); cross-validation uses ten folds from that same seed and a local-linear fit
+        throughout.</p>
+      <p>ISLP Plainly — <span data-year>2026</span></p>
+    </footer>
+  </main>
+
+  <!-- ======================= page TOC ======================= -->
+  <details class="page-toc" id="page-toc" open>
+    <summary>On this page</summary>
+    <p class="toc-title">On this page</p>
+    <nav aria-label="Table of contents">
+      <ol></ol>
+    </nav>
+  </details>
+</div>
+
+<div class="scrim" id="scrim"></div>
+
+</body>
+</html>

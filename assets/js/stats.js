@@ -1128,6 +1128,160 @@
     return { mse: s / n, rss: s, err: err, foldRss: foldRss, foldN: foldN };
   }
 
+  /* ======================================================================
+     Section 7.6 — local regression, ISLP Algorithm 7.1.
+
+     At a target x0: gather the k = ceil(s*n) nearest training points,
+     weight them by distance so the furthest gets weight zero and the
+     closest the highest, fit a weighted least squares of y on the
+     centred powers (1, x-x0, (x-x0)^2 ...) and read the fit off at x0 —
+     which, because the design is centred, is the intercept beta_0.
+     The kernel is the tricube K(d) = (1 - d^3)^3_+, the one R's loess
+     and statsmodels' lowess use and the one the yellow bell in Figure
+     7.9 draws (page 7-5 fits that bell and prints the match).
+
+     Two implementation choices, both matched to the reference the
+     harness uses:
+
+       k = ceil(s*n), clamped to at least degree+1, and h is the
+       distance to the k-th nearest point; the neighbourhood is every
+       point with d <= h, so ties can make it larger than k (age is
+       discrete: this happens on the Wage data).  In one dimension the
+       k nearest points are a contiguous block of the x-sorted data, so
+       a two-pointer walk finds them in O(log n + k) — that is what
+       keeps ten-fold cross-validation over twenty spans live.
+
+     The centred design is R's convention: beta_0 IS the fitted value
+     at x0, beta_1 the local slope, and q — the row of the smoother
+     that multiplies y — gives the two counts section 7.5 called
+     effective degrees of freedom: tr(S) sums q_i on its own target,
+     tr(S'S) sums its squared length.  Both are printed by page 7-5's
+     Wage demo, because the book's Figure 7.10 legend quotes a third
+     count (see the page: it is R's loess enp at its default degree 2).
+     ====================================================================== */
+  function tricube(d) {
+    var t = 1 - d * d * d;
+    return t > 0 ? t * t * t : 0;
+  }
+
+  /* Sort by x once; every fit, curve and cross-validation fold then
+     works on this.  `groups` lists the distinct x values (with their
+     counts and first positions), which is what makes the df sums cost
+     one fit per distinct age — 61 on the Wage data, not 3,000. */
+  function localPrepare(x, y) {
+    var n = x.length, order = [], i;
+    for (i = 0; i < n; i++) order.push(i);
+    order.sort(function (p, q) { return x[p] - x[q]; });
+    var sx = new Array(n), sy = new Array(n);
+    for (i = 0; i < n; i++) { sx[i] = x[order[i]]; sy[i] = y[order[i]]; }
+    var ux = [], cnt = [], pos = [];
+    for (i = 0; i < n; i++) {
+      if (i === 0 || sx[i] !== sx[i - 1]) { ux.push(sx[i]); cnt.push(1); pos.push(i); }
+      else cnt[cnt.length - 1]++;
+    }
+    return { n: n, x: x, y: y, order: order, sx: sx, sy: sy, ux: ux, cnt: cnt, pos: pos };
+  }
+
+  /* The neighbourhood of x0 on prepared data: contiguous [l, r) in
+     sorted order holding every point with d <= h. */
+  function localWindow(x0, prep, span, degree) {
+    var sx = prep.sx, n = prep.n;
+    var k = Math.max(degree + 1, Math.ceil(span * n));
+    var lo = 0, hi = n;                       // insertion point of x0
+    while (lo < hi) { var mid = (lo + hi) >> 1; if (sx[mid] < x0) lo = mid + 1; else hi = mid; }
+    var l = lo - 1, r = lo, taken = 0, h = 0;
+    while (taken < k && (l >= 0 || r < n)) {
+      var dl = l >= 0 ? x0 - sx[l] : Infinity;
+      var dr = r < n ? sx[r] - x0 : Infinity;
+      if (dl <= dr) { h = dl; l--; } else { h = dr; r++; }
+      taken++;
+    }
+    if (taken === 0) return { k: k, h: 0, l: 0, r: 0, ins: lo };
+    while (l >= 0 && x0 - sx[l] <= h) l--;           // tie expansion: d <= h
+    while (r < n && sx[r] - x0 <= h) r++;
+    /* after the walk, l sits ON the first point outside the neighbourhood
+       to the left (or -1); the window starts just after it.  Right side
+       already stops before its first outsider. */
+    l = l + 1;
+    if (l < 0) l = 0;
+    return { k: k, h: h, l: l, r: r, ins: lo };
+  }
+
+  /* One local fit at x0.  Returns the centred coefficients (beta[0] is
+     the fit at x0), the bandwidth and the neighbourhood window.  With
+     wantRow, also q — each neighbourhood point's weight on this fit —
+     so the caller can accumulate tr(S) and tr(S'S). */
+  function localFitAt(x0, prep, span, degree, wantRow) {
+    var sx = prep.sx, sy = prep.sy, win = localWindow(x0, prep, span, degree);
+    var l = win.l, r = win.r, m = r - l, h = win.h, i, j, p;
+    var A = [], b = [];
+    for (i = 0; i <= degree; i++) { A.push(new Array(degree + 1).fill(0)); b.push(0); }
+    var rows = [];
+    var sw = new Float64Array(m);
+    for (i = 0; i < m; i++) {
+      var d = Math.abs(sx[l + i] - x0);
+      sw[i] = h > 0 ? tricube(d / h) : 1;       // h = 0: tied points, equal weight
+      var row = [1], pw = 1;
+      for (p = 1; p <= degree; p++) { pw *= (sx[l + i] - x0); row.push(pw); }
+      rows.push(row);
+    }
+    for (i = 0; i < m; i++) {
+      var w = sw[i];
+      if (!(w > 0)) continue;
+      for (j = 0; j <= degree; j++) {
+        b[j] += w * rows[i][j] * sy[l + i];
+        for (var j2 = 0; j2 <= degree; j2++) A[j][j2] += w * rows[i][j] * rows[i][j2];
+      }
+    }
+    var beta = solve(A, b);
+    var q = null;
+    if (wantRow) {
+      /* the smoother row: q_j = w_j * row_j · (XᵀWX)⁻¹ e₀, so that
+         fitted-value at x0 = Σ_j q_j y_j.  e₀ picks the intercept,
+         which is the fit at x0 in the centred design. */
+      var e0 = new Array(degree + 1).fill(0); e0[0] = 1;
+      var v = solve(A, e0);
+      q = new Float64Array(m);
+      for (i = 0; i < m; i++) {
+        var xv = 0;
+        for (p = 0; p <= degree; p++) xv += rows[i][p] * v[p];
+        q[i] = sw[i] * xv;
+      }
+    }
+    return { yhat: beta[0], beta: beta, h: h, k: win.k, nb: m, l: l, r: r,
+             ins: win.ins - l, q: q };
+  }
+
+  /* Fits at every training target (one per distinct x), with the two
+     counts and the residual sum of squares: page 7.5's df conventions,
+     applied to the local smoother.  count-weighted because every man
+     of the same age gets the identical fit and identical q row. */
+  function localSummary(prep, span, degree) {
+    var df = 0, enp = 0, rss = 0, yh = new Array(prep.n), g, i, j;
+    for (g = 0; g < prep.ux.length; g++) {
+      var fit = localFitAt(prep.ux[g], prep, span, degree, true);
+      var c = prep.cnt[g];
+      df += c * fit.q[fit.ins];
+      var s = 0;
+      for (j = 0; j < fit.q.length; j++) s += fit.q[j] * fit.q[j];
+      enp += c * s;
+      var gy = 0, gy2 = 0;
+      for (i = prep.pos[g]; i < prep.pos[g] + c; i++) {
+        gy += prep.sy[i]; gy2 += prep.sy[i] * prep.sy[i];
+        yh[i] = fit.yhat;
+      }
+      rss += gy2 - 2 * fit.yhat * gy + c * fit.yhat * fit.yhat;
+    }
+    return { df: df, enp: enp, rss: rss, yhat: yh };
+  }
+
+  /* The fitted curve over a grid of targets. */
+  function localCurve(prep, grid, span, degree) {
+    var out = new Array(grid.length), i;
+    for (i = 0; i < grid.length; i++) out[i] = localFitAt(grid[i], prep, span, degree).yhat;
+    return out;
+  }
+
   /* Logistic regression by iteratively reweighted least squares.  Each step
      builds the working response z = eta + (y - p)/w with w = p(1-p) and
      refits by weighted least squares, exactly the algorithm chapter 4
@@ -1228,6 +1382,12 @@
     smoothSpline: smoothSpline,
     design: design,
     cvBasis: cvBasis,
+    tricube: tricube,
+    localPrepare: localPrepare,
+    localWindow: localWindow,
+    localFitAt: localFitAt,
+    localSummary: localSummary,
+    localCurve: localCurve,
     logit: logit
   };
 })(window);

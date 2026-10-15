@@ -427,12 +427,11 @@ Chapter 5 (harnesses `/tmp/opencode/ch5_check.py` for structure and
   reader sees, and the reference implementations share no code with the
   browser.
 
-- **Chapter 7, sections 7.1–7.5 (harnesses `/tmp/opencode/ch7_page_probe.py`
-  and `/tmp/opencode/ch7_readouts.py` — they race on the same scratch
-  directory, so run one at a time — with the independent Python references
-  `/tmp/opencode/ch7_ref.py`, `ch7_73_ref.py`, `ch7_73_fast.py`,
-  `ch7_73_cv.py`, `ch7_73_claim.py` and `ch7_75_ref.py`).** Four pages,
-  fourteen demos, all fitted in the browser on all 3,000 rows of the book's
+- **Chapter 7, sections 7.1–7.6 (harnesses `/tmp/opencode/ch7_numbers.py`
+  and `/tmp/opencode/ch7_page_probe.py` — the probe imports the numbers
+  harness for its pinned values and both drive headless Chromium, so run one
+  at a time — with the Figure 7.9 digitiser in `tools/ch07_fig79.py`).**
+  Five pages, sixteen demos, all fitted in the browser on all 3,000 rows of the book's
   Wage data. §7.1 is
   polynomial regression: the fitted curve with its pointwise 2× band at any
   degree 1–15, the logistic fit for the 79 men above
@@ -460,7 +459,19 @@ Chapter 5 (harnesses `/tmp/opencode/ch5_check.py` for structure and
   at df 6.82 against the book's 6.8; and the leave-one-out shortcut checked
   the slow way — the first man at each distinct age deleted, one at a time,
   61 rank-one refits per slider position — where formula and refit agree to
-  1.8 × 10<sup>−13</sup>.
+  1.8 × 10<sup>−13</sup>. §7.6 is local regression, three demos: Figure
+  7.9's construction rebuilt live on the f(x) that generated the book's
+  simulated data — digitised from the printed page — where the target
+  slider drags the tricube weight-bell along that curve with k, h, f̂(x₀),
+  f(x₀) and the error printed at four decimals, and two buttons jump to the
+  book's own two targets (measured at 0.4562 and 0.0649 against the axis
+  ticks, where the text only says "near 0.4" and "near the boundary at
+  0.05"); the Wage demo with Figure 7.10's two spans drawn as grey
+  reference curves (0.2 solid, 0.7 dashed), a span slider, the constant /
+  linear / quadratic choices of Algorithm 7.1, and a second panel counting
+  tr(S) and tr(S′S) against span with the book's legend counts plotted
+  whenever degree 2 is selected; and ten-fold CV of the span over twenty
+  values with the same LCG reshuffle button the earlier CV demos use.
 - **What the Chapter 7 numbers rest on.** Every readout was recomputed
   independently in Python from ISLP's own `bs`/`ns`/`poly` transforms and
   numpy least squares: §7.3's largest fitted-value gap between two
@@ -475,14 +486,37 @@ Chapter 5 (harnesses `/tmp/opencode/ch5_check.py` for structure and
   rather than assumed: a raw one-knot cubic design has a condition number of
   8.4 million (the degree-15 one, 8 × 10³³), and a degree-4 polynomial
   against a df-4 natural spline still disagrees by 14.3 at the far edge,
-  not by nothing. §7.5's numbers rest on `ch7_75_ref.py`: the λ = 0 fit was
+  not by nothing. §7.5's numbers rest on `ch7_numbers.py`'s page_74 (the
+  λ = 0 RSS 4,686,411 with its 59-interior/61-distinct bookkeeping, and the
+  least squares line 5,022,216), plus a numpy delete-one reference that ran
+  at the 7-4 commit: the λ = 0 fit was
   cross-checked against ISLP's own `ns()` at the 59 interior ages (identical
   RSS to seven digits), its leverage is exactly 1/n at every age — the
   77-year-old's is 1.000000000000, which is why the leave-one-out criterion
   divides by zero exactly there — and the shortcut check's sum of squares
   (115,491.5868) and amplifier 1/(1 − S<sub>ii</sub>) (1.2314 at df 16,
   1.0173 at df 3, 1.4178 at df 40) were recomputed by deleting each of the
-  61 men in numpy.
+  61 men in numpy; the probe re-asserts those three from the live DOM on
+  every run (both totals printed identically and within 5 × 10⁻⁴ of
+  115,491.5868, the formula-vs-refit gap under 10⁻¹¹, the amplifier 1.2314).
+  §7.6's numbers rest on `ch7_numbers.py` plus `tools/ch07_fig79.py`: the
+  f(x) traced from both panels of the book's Figure 7.9 agrees to a mean
+  0.0025 and a worst 0.0096; the printed weight bell is the tricube (fitted
+  half-widths 0.1985/0.2010, peaks 0.996/0.970, rmse 0.009/0.029); the
+  demo's points are simulated with mulberry32 seed 7 at σ = 0.35 — measured
+  from the 67 printed circles digitised about the traced curve (residual sd
+  0.3816, range −0.508 to +0.701) — because the book publishes no data for
+  its own Figure 7.9; the degree-1 fits equal statsmodels' lowess(it=0) to
+  1.2 × 10⁻¹¹ and R's loess(degree=1, surface="direct") RSS to better than
+  a thousandth of a squared unit; the legend's 16.4/5.3 were tracked to R's
+  default degree-2 enp on its interpolated surface (16.41607/5.29968,
+  asserted in docker when it is available) against our tr(S)/tr(S′S) of
+  10.64/8.92 at span 0.2, 4.90/4.22 at 0.5 and 3.69/3.23 at 0.7; the
+  span-0.05 edge case is pinned too (h = 1 year at age 47, 98 men at
+  exactly that age below k = 150, 271 within h, df 39.87 for the mixture of
+  collapsed and linear targets); and CV's flatness is asserted as total
+  variation (46.0) under one standard error (67.9), with the reshuffle
+  seed march (7 → 1282168119) checked exactly.
 - **Honest framing, stated on the page where it matters.** Figures 7.3,
   7.4 and 7.7 are fitted on all 3,000 rows although the book says it plots
   an unidentified "subset", so they are our fits and say so. Our CV minima
@@ -502,13 +536,24 @@ Chapter 5 (harnesses `/tmp/opencode/ch5_check.py` for structure and
   at df 61, at that single 77-year-old. Figure 7.8's two curves are ours —
   the book does not say how many rows its figure used — and λ itself is
   basis-dependent, so readouts lead with effective degrees of freedom.
+  §7.6's page is equally explicit: Figure 7.9's 100 points are ours —
+  simulated, stated seed, noise level measured off the printed circles —
+  because the book shows but never ships them; its f(x) is our digitisation
+  of the printed curve; the neighbourhood keeps every man tied at the k-th
+  distance (637 within h of age 47 at span 0.2 rather than the 600 the
+  recipe asks for — a choice Algorithm 7.1 leaves open); the tie-collapsed
+  span-0.05 fits are reported rather than hidden; and the legend's degrees
+  of freedom are labelled as R's default quadratic enp next to our two
+  counts instead of being passed off as either. The CV demo prints its
+  standard error for the same reason the earlier ones do: the argmin moves
+  from span 0.25 to 0.30 under a reshuffle while the whole curve spans
+  46.0, under one standard error — a plateau, not a fact.
 
 ## Next
 
 Ask for a chapter by name. Chapters 1–6 are built, and Chapter 7 (Moving
-Beyond Linearity) is four of its six pages deep — §7.6 Local Regression
-(Figures 7.9 and 7.10) and §7.7 Additive Models, Trees and Related Methods
-(Figure 7.11, plus the lab) finish it. For a new chapter:
+Beyond Linearity) is five of its six pages deep — §7.7 Additive Models,
+Trees and Related Methods (Figure 7.11, plus the lab) finishes it. For a new chapter:
 extract its `_text/chNN.txt`, add its `sections` to `assets/js/nav.js`,
 copy reusable demos from `10days_islp/site/assets/js/demos/`, write its new
 demos, capture lab and exercise outputs with a `tools/labNN_capture.py` /
